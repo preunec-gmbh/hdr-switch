@@ -51,7 +51,7 @@ internal sealed class SettingsForm : Form
         MinimizeBox = false;
         ClientSize = new Size(620, 590);
         MinimumSize = new Size(560, 520);
-        Icon = IconFactory.On;
+        Icon = IconFactory.App;
         Font = Brand.Body(9f);
         BackColor = Brand.SurfaceBase;
         ForeColor = Brand.TextPrimary;

@@ -11,6 +11,7 @@
     <AssemblyName>HdrSwitch</AssemblyName>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Brand/app.ico</ApplicationIcon>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <InvariantGlobalization>true</InvariantGlobalization>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
@@ -36,6 +37,8 @@
     <!-- The outlined wordmark, vendored from design-system-kit. See Brand/VENDORED.md.
          Embedded verbatim so the mark is never redrawn or re-typeset. -->
     <EmbeddedResource Include="Brand\preunec-wordmark-mono.svg" LogicalName="HdrSwitch.Brand.preunec-wordmark-mono.svg" />
+    <!-- The product mark, used for the executable, window and taskbar icons. -->
+    <EmbeddedResource Include="Brand/app.ico" LogicalName="HdrSwitch.Brand.app.ico" />
   </ItemGroup>
 
 </Project>

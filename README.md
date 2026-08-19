@@ -1,4 +1,18 @@
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/PNG/hdr-logo-white@2x.png">
+  <img src="assets/PNG/hdr-logo@2x.png" alt="HDR Switch" width="300">
+</picture>
+
 # HDR Switch
+
+[![CI](https://github.com/preunec-gmbh/hdr-switch/actions/workflows/ci.yml/badge.svg)](https://github.com/preunec-gmbh/hdr-switch/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/preunec-gmbh/hdr-switch)](https://github.com/preunec-gmbh/hdr-switch/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/preunec-gmbh/hdr-switch/total)](https://github.com/preunec-gmbh/hdr-switch/releases)
+[![Windows](https://img.shields.io/badge/Windows-10%201803%2B%20%7C%2011-0693E3)](https://github.com/preunec-gmbh/hdr-switch/releases/latest)
+
+</div>
 
 A Windows tray app for turning HDR on and off without digging through Settings — plus a thing
 Windows itself does not do: **it notices when you start sharing your screen and offers to turn
@@ -10,6 +24,23 @@ Switch spots the capture starting and asks — then learns your answer so it sto
 
 Single self-contained `HdrSwitch.exe`. No installer, no .NET runtime needed, no admin rights,
 no NuGet dependencies.
+
+## Download
+
+**[Download the latest release](https://github.com/preunec-gmbh/hdr-switch/releases/latest)** — one
+`HdrSwitch.exe`, put it anywhere and run it.
+
+> **Windows will warn you on first run** — "Windows protected your PC", publisher unknown. The
+> binary is not code-signed yet, and SmartScreen warns about any unsigned executable it has not
+> seen before. Verify the download against the published SHA-256 first, then choose
+> **More info → Run anyway**:
+>
+> ```powershell
+> (Get-FileHash .\HdrSwitch.exe -Algorithm SHA256).Hash.ToLower()
+> # compare with HdrSwitch.exe.sha256 from the same release
+> ```
+>
+> See [SECURITY.md](SECURITY.md) for what the app does and does not touch.
 
 ---
 

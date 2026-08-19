@@ -19,6 +19,34 @@ internal static class IconFactory
     private static readonly Dictionary<string, Icon> Cache = [];
     private static readonly List<IntPtr> OwnedHandles = [];
 
+    /// <summary>
+    /// The product mark, for the executable, taskbar and window icons.
+    ///
+    /// Deliberately NOT used in the tray: the tray icon's job is to show whether HDR is on, and
+    /// three letters do not survive being scaled to 16x16. Identity goes on the window, state
+    /// goes in the tray.
+    /// </summary>
+    internal static Icon App
+    {
+        get
+        {
+            lock (Cache)
+            {
+                if (Cache.TryGetValue("app", out var cached))
+                {
+                    return cached;
+                }
+
+                using var stream = System.Reflection.Assembly.GetExecutingAssembly()
+                    .GetManifestResourceStream("HdrSwitch.Brand.app.ico");
+
+                var icon = stream is not null ? new Icon(stream) : On;
+                Cache["app"] = icon;
+                return icon;
+            }
+        }
+    }
+
     internal static Icon On => Get("on", static g => Draw(g, enabled: true, blocked: false));
 
     internal static Icon Off => Get("off", static g => Draw(g, enabled: false, blocked: false));
