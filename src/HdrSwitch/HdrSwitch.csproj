@@ -20,7 +20,7 @@
     <Product>HDR Switch</Product>
     <AssemblyTitle>HDR Switch</AssemblyTitle>
     <Company>preunec</Company>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
 
     <!-- WinForms does not support PublishTrimmed; compression is the size lever instead. -->
     <PublishSingleFile>true</PublishSingleFile>

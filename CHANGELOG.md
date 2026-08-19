@@ -7,6 +7,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-08-19
+
+### Added
+
+- Product icon on the executable, taskbar and window. Built as a multi-resolution `.ico`
+  (16-256) from the white mark on a brand-navy tile, so it stays legible against both a light
+  and a dark taskbar. Small sizes use tighter padding, because at 16 px the tile margin costs
+  more than it gives.
+- Theme-aware logo and status badges in the README, plus a download section that explains the
+  SmartScreen warning and how to verify the published SHA-256.
+
+### Notes
+
+- The tray icon deliberately still shows HDR state rather than the product mark: three letters
+  do not survive being scaled to 16x16, and the tray's job is to say whether HDR is on.
+- The binary is still unsigned, so Windows SmartScreen will warn on first run. See SECURITY.md.
+
 ## [1.0.0] — 2026-08-19
 
 First release.
@@ -48,5 +65,6 @@ First release.
 - The process-name fallback for legacy capture tools is **off by default**: it cannot distinguish
   an application being open from one actually sharing.
 
-[Unreleased]: https://github.com/preunec-gmbh/hdr-switch/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/preunec-gmbh/hdr-switch/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/preunec-gmbh/hdr-switch/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/preunec-gmbh/hdr-switch/releases/tag/v1.0.0
