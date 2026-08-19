@@ -1,0 +1,11 @@
+# Default owner for everything in this repository.
+*       @cagatay-softgineer
+
+# Interop and detection: a mistake here fails silently rather than loudly.
+/src/HdrSwitch.Core/Interop/    @cagatay-softgineer
+/src/HdrSwitch.Core/Sharing/    @cagatay-softgineer
+
+# Vendored brand assets — re-synced from design-system-kit, never edited in place.
+/src/HdrSwitch/Brand/           @cagatay-softgineer
+/src/HdrSwitch/Ui/Brand.cs      @cagatay-softgineer
+/src/HdrSwitch/Ui/Wordmark.cs   @cagatay-softgineer

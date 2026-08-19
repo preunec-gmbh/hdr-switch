@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>HdrSwitch</RootNamespace>
+    <AssemblyName>HdrSwitch</AssemblyName>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+
+    <Product>HDR Switch</Product>
+    <AssemblyTitle>HDR Switch</AssemblyTitle>
+    <Company>preunec</Company>
+    <Version>1.0.0</Version>
+
+    <!-- WinForms does not support PublishTrimmed; compression is the size lever instead. -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HdrSwitch.Core\HdrSwitch.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The outlined wordmark, vendored from design-system-kit. See Brand/VENDORED.md.
+         Embedded verbatim so the mark is never redrawn or re-typeset. -->
+    <EmbeddedResource Include="Brand\preunec-wordmark-mono.svg" LogicalName="HdrSwitch.Brand.preunec-wordmark-mono.svg" />
+  </ItemGroup>
+
+</Project>

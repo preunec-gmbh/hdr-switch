@@ -1,0 +1,52 @@
+name: Feature request
+description: Suggest something HDR Switch should do
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A couple of things are deliberate non-goals, so it is worth checking first:
+
+        - **SDR content brightness slider** — readable, but there is no documented setter for it
+          (only the undocumented `SET_RESERVED1`), so it is reported and not written.
+        - **Separate wide-colour-gamut control** — reported, not toggled.
+        - **Knowing *what* is being shared** (a window versus the whole display) — Windows does
+          not expose it.
+
+        If your idea needs one of those, say so and why; it is not an automatic no, but it needs
+        a route that does not rely on undocumented behaviour.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve
+      description: Describe the situation you are in, not the solution. What are you trying to do, and what gets in the way?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where would it live
+      options:
+        - Tray menu
+        - Screen-share prompt or rules
+        - Command line
+        - Settings window
+        - Game rules
+        - Somewhere else
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you have tried instead
+      description: Existing options, other tools, or a workaround you are living with.

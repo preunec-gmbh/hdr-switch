@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>HdrSwitch.Core</RootNamespace>
+    <AssemblyName>HdrSwitch.Core</AssemblyName>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <IsAotCompatible>false</IsAotCompatible>
+    <!-- Source-generated JSON only: reflection-based serialization is fragile under single-file publish. -->
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="HdrSwitch.Tests" />
+  </ItemGroup>
+
+</Project>

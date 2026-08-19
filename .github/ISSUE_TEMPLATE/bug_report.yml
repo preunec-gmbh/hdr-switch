@@ -1,0 +1,88 @@
+name: Bug report
+description: Something does not work the way it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this.
+
+        **Please do not report security problems here** — see [SECURITY.md](https://github.com/preunec-gmbh/hdr-switch/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: selftest
+    attributes:
+      label: selftest output
+      description: |
+        Run `HdrSwitch.exe selftest` and paste the whole thing. It carries your Windows build,
+        the resolved display API, the struct layout table, every display with its raw flags, and
+        any active screen capture — which is most of what an HDR or detection bug turns on.
+      render: text
+      placeholder: |
+        OS                : Microsoft Windows NT 10.0.26200.0
+        CCD API path      : Modern (probed)
+        ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Turn HDR on for the external monitor
+        2. Start a Discord screen share
+        3. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part
+      options:
+        - HDR toggling (tray, hotkey, or CLI)
+        - Screen-share detection or the prompt
+        - Learned rules
+        - Game rules
+        - Settings window or appearance
+        - Start with Windows
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: HDR Switch version
+      description: From `HdrSwitch.exe --version`, or the release you downloaded.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: displays
+    attributes:
+      label: Display setup
+      description: Monitors, how they are connected, and which GPU drives them. Hybrid-graphics laptops are worth calling out.
+      placeholder: |
+        - Samsung LS27AG55x, DisplayPort, RTX 3060 laptop GPU
+        - Internal panel, AMD iGPU
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I ran `selftest` and pasted the output above
+          required: true
+        - label: This is not a security issue
+          required: true

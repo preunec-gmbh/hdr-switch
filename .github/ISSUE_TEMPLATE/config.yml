@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or help using HDR Switch
+    url: https://github.com/preunec-gmbh/hdr-switch/discussions
+    about: Ask here rather than opening an issue. Bring your `HdrSwitch.exe selftest` output.
+  - name: Security vulnerability
+    url: https://github.com/preunec-gmbh/hdr-switch/security/advisories/new
+    about: Report privately. Never in a public issue.

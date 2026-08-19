@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore
+        run: dotnet restore HdrSwitch.sln
+
+      - name: Build
+        run: dotnet build HdrSwitch.sln -c Release --no-restore /warnaserror
+
+      - name: Test
+        run: dotnet test HdrSwitch.sln -c Release --no-build --verbosity normal
+
+      - name: Publish single file
+        run: >
+          dotnet publish src/HdrSwitch/HdrSwitch.csproj -c Release -r win-x64
+          -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true
+          --self-contained true -o publish
+
+      # The CI runner is headless with no real display, so `selftest` cannot assert HDR state.
+      # It can still prove the interop struct layouts match the SDK header, which is the check
+      # that would otherwise fail silently and read the wrong bytes.
+      - name: Verify interop struct layouts
+        shell: pwsh
+        run: |
+          $out = & ./publish/HdrSwitch.exe selftest | Out-String
+          Write-Host $out
+          if ($out -match 'FAIL') {
+            Write-Error 'A struct layout does not match the SDK header.'
+            exit 1
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HdrSwitch-win-x64
+          path: publish/HdrSwitch.exe
+          if-no-files-found: error

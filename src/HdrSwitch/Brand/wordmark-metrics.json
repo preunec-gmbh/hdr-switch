@@ -1,0 +1,28 @@
+{
+  "$description": "Measured from the outlined wordmark. Everything a layout needs in order to place the mark correctly without guessing. Regenerate with brand/tools/outline-wordmark.mjs.",
+  "word": "preunec",
+  "typeface": "Sabon Bold (outlined; font not distributed)",
+  "tracking": "0.1em",
+  "viewBox": {
+    "x": 1.2,
+    "y": -47.1,
+    "w": 397,
+    "h": 69.9
+  },
+  "aspectRatio": 5.68,
+  "capHeight": 71.2,
+  "xHeight": 47.9,
+  "ascender": 76.4,
+  "descender": -23.6,
+  "clearSpace": {
+    "$description": "Minimum exclusion zone on all four sides, expressed in the wordmark's own units and as a multiple of its height. Nothing — text, image, rule, or edge of the medium — enters this zone.",
+    "units": 71.2,
+    "multipleOfCapHeight": 1,
+    "relativeToMarkHeight": 1.02
+  },
+  "minSize": {
+    "screen": "80px wide",
+    "print": "20mm wide",
+    "$description": "Below these the descender on 'p' and the counters in 'e' close up and the mark stops reading as a word."
+  }
+}
