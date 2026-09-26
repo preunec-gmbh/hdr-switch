@@ -53,18 +53,24 @@ internal sealed class ToastWindow : Form
     /// <summary>
     /// The "an app started sharing your screen" prompt, with the three answers the rule engine
     /// understands.
+    ///
+    /// Windows does not say which screen is being captured, so with more than one HDR display on
+    /// the prompt asks: one button per display, so the screen that is not being shared keeps HDR.
+    /// Still one click. <paramref name="onAnswer"/> receives the chosen display ids for
+    /// <see cref="CaptureAnswer.TurnOff"/>, and null otherwise.
     /// </summary>
     internal static ToastWindow ShowSuggestion(
         string appName,
         string headline,
         string detail,
         int seconds,
-        Action<CaptureAnswer> onAnswer)
+        IReadOnlyList<(string Id, string Label)> displays,
+        Action<CaptureAnswer, IReadOnlyList<string>?> onAnswer)
     {
         var toast = new ToastWindow();
         var answered = false;
 
-        void Answer(CaptureAnswer answer)
+        void Answer(CaptureAnswer answer, IReadOnlyList<string>? displayIds = null)
         {
             if (answered)
             {
@@ -73,22 +79,48 @@ internal sealed class ToastWindow : Form
 
             answered = true;
             toast._answered = true;
-            onAnswer(answer);
+            onAnswer(answer, displayIds);
             toast.Dismiss();
         }
 
         var y = toast.BuildHeader(headline, detail);
-
-        var turnOff = toast.MakeButton("Turn HDR off", primary: true);
+        var allIds = displays.Select(d => d.Id).ToList();
         var keep = toast.MakeButton("Keep HDR", primary: false);
-        turnOff.Click += (_, _) => Answer(CaptureAnswer.TurnOff);
         keep.Click += (_, _) => Answer(CaptureAnswer.Keep);
 
-        turnOff.Location = new Point(Inset, y);
-        keep.Location = new Point(Inset + turnOff.Width + 8, y);
-        toast.Controls.Add(turnOff);
-        toast.Controls.Add(keep);
-        y += turnOff.Height + 10;
+        if (displays.Count <= 1)
+        {
+            var turnOff = toast.MakeButton("Turn HDR off", primary: true);
+            turnOff.Click += (_, _) => Answer(CaptureAnswer.TurnOff, allIds);
+
+            turnOff.Location = new Point(Inset, y);
+            keep.Location = new Point(Inset + turnOff.Width + 8, y);
+            toast.Controls.Add(turnOff);
+            toast.Controls.Add(keep);
+            y += turnOff.Height + 10;
+        }
+        else
+        {
+            foreach (var (id, label) in displays)
+            {
+                var one = toast.MakeButton($"Turn HDR off on {label}", primary: true);
+                one.Width = 400 - (Inset * 2);
+                one.TextAlign = ContentAlignment.MiddleLeft;
+                one.Location = new Point(Inset, y);
+                one.Click += (_, _) => Answer(CaptureAnswer.TurnOff, [id]);
+                toast.Controls.Add(one);
+                y += one.Height + 6;
+            }
+
+            y += 4;
+            var all = toast.MakeButton("All screens", primary: false);
+            all.Click += (_, _) => Answer(CaptureAnswer.TurnOff, allIds);
+            all.Location = new Point(Inset, y);
+            keep.Location = new Point(Inset + all.Width + 8, y);
+            toast.Controls.Add(all);
+            toast.Controls.Add(keep);
+            y += all.Height + 10;
+        }
 
         var never = new LinkLabel
         {

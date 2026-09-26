@@ -37,6 +37,12 @@ public sealed record CliOptions
     /// <summary>Output file for commands that write one (brandcheck).</summary>
     public string? OutPath { get; init; }
 
+    /// <summary>
+    /// Internal: the tray was started by an update, and should wait for this process (the old
+    /// version) to exit before taking over. Not in the usage text.
+    /// </summary>
+    public int? AfterUpdatePid { get; init; }
+
     /// <summary>Set when parsing failed; the caller should print this and exit non-zero.</summary>
     public string? Error { get; init; }
 
@@ -91,6 +97,7 @@ public static class CommandLine
         var quiet = false;
         var all = false;
         string? outPath = null;
+        int? afterUpdatePid = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -136,6 +143,16 @@ public static class CommandLine
 
                     outPath = args[++i];
                     continue;
+                case "--after-update":
+                    if (i + 1 >= args.Length || !int.TryParse(args[i + 1], out var pid) || pid <= 0)
+                    {
+                        return Fail("--after-update needs a process id.");
+                    }
+
+                    i++;
+                    afterUpdatePid = pid;
+                    command ??= CliCommand.Tray;
+                    continue;
                 case "--display" or "-d":
                     if (i + 1 >= args.Length)
                     {
@@ -167,6 +184,7 @@ public static class CommandLine
             Json = json,
             Quiet = quiet,
             OutPath = outPath,
+            AfterUpdatePid = afterUpdatePid,
         };
     }
 

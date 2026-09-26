@@ -7,7 +7,10 @@ namespace HdrSwitch.Core.Sharing;
 
 /// <summary>
 /// Watches the CapabilityAccessManager consent store and raises events when an application
-/// starts or stops capturing the screen.
+/// starts or stops sharing the screen.
+///
+/// Raw captures go through <see cref="CaptureConfirmer"/> first, so a browser's source picker or
+/// a one-frame thumbnail grab never reaches the caller -- only a capture that is really sharing.
 ///
 /// Detection is event-driven via RegNotifyChangeKeyValue, so a capture is normally noticed
 /// within a few hundred milliseconds. A slow safety poll also runs, because a missed
@@ -27,20 +30,25 @@ public sealed class CaptureWatcher : IDisposable
     private readonly ManualResetEvent _stopEvent = new(false);
     private readonly object _stateLock = new();
 
-    private Dictionary<string, CaptureSession> _active = new(StringComparer.OrdinalIgnoreCase);
+    private readonly CaptureConfirmer _confirmer = new();
+    private readonly Func<DateTime> _utcNow;
     private Thread? _thread;
     private bool _disposed;
 
-    public CaptureWatcher(IRegistryProbe? probe = null, Func<IReadOnlyList<CaptureSession>>? heuristicProvider = null)
+    public CaptureWatcher(
+        IRegistryProbe? probe = null,
+        Func<IReadOnlyList<CaptureSession>>? heuristicProvider = null,
+        Func<DateTime>? utcNow = null)
     {
         _probe = probe ?? new RegistryProbe();
         _heuristicProvider = heuristicProvider;
+        _utcNow = utcNow ?? (() => DateTime.UtcNow);
     }
 
-    /// <summary>Raised when an app begins capturing. Background thread.</summary>
+    /// <summary>Raised once an app is confirmed to be sharing. Background thread.</summary>
     public event EventHandler<CaptureSession>? CaptureStarted;
 
-    /// <summary>Raised when an app stops capturing. Background thread.</summary>
+    /// <summary>Raised when a confirmed share has ended for good. Background thread.</summary>
     public event EventHandler<CaptureSession>? CaptureStopped;
 
     /// <summary>Raised when the watcher cannot arm registry notifications and is poll-only.</summary>
@@ -52,7 +60,7 @@ public sealed class CaptureWatcher : IDisposable
         {
             lock (_stateLock)
             {
-                return _active.Values.ToList();
+                return _confirmer.Confirmed;
             }
         }
     }
@@ -71,7 +79,7 @@ public sealed class CaptureWatcher : IDisposable
         // is not a transition the user needs to be told about.
         lock (_stateLock)
         {
-            _active = Scan().ToDictionary(s => s.AppKey, StringComparer.OrdinalIgnoreCase);
+            _confirmer.Seed(Scan(), _utcNow());
         }
 
         _thread = new Thread(WatchLoop)
@@ -141,7 +149,7 @@ public sealed class CaptureWatcher : IDisposable
                     handles[i + 1] = events[i];
                 }
 
-                var signalled = WaitHandle.WaitAny(handles, SafetyPollMs);
+                var signalled = WaitHandle.WaitAny(handles, NextWaitMs());
                 if (signalled == 0)
                 {
                     return;
@@ -182,6 +190,25 @@ public sealed class CaptureWatcher : IDisposable
                 handle.Dispose();
             }
         }
+    }
+
+    /// <summary>Sleep until the next registry event, or until a pending capture is due a verdict.</summary>
+    private int NextWaitMs()
+    {
+        DateTime? deadline;
+        lock (_stateLock)
+        {
+            deadline = _confirmer.NextDeadline();
+        }
+
+        if (deadline is null)
+        {
+            return SafetyPollMs;
+        }
+
+        // A little past the deadline, so the check lands after it rather than just before.
+        var ms = (deadline.Value - _utcNow()).TotalMilliseconds + 50;
+        return (int)Math.Clamp(ms, 50, SafetyPollMs);
     }
 
     private static RegistryKey? OpenCapabilityKey(string capabilityName)
@@ -240,15 +267,12 @@ public sealed class CaptureWatcher : IDisposable
 
     private void DiffAndRaise(IReadOnlyList<CaptureSession> current)
     {
-        List<CaptureSession> started;
-        List<CaptureSession> stopped;
+        IReadOnlyList<CaptureSession> started;
+        IReadOnlyList<CaptureSession> stopped;
 
         lock (_stateLock)
         {
-            var next = current.ToDictionary(s => s.AppKey, StringComparer.OrdinalIgnoreCase);
-            started = next.Where(kv => !_active.ContainsKey(kv.Key)).Select(kv => kv.Value).ToList();
-            stopped = _active.Where(kv => !next.ContainsKey(kv.Key)).Select(kv => kv.Value).ToList();
-            _active = next;
+            (started, stopped) = _confirmer.Update(current, _utcNow());
         }
 
         foreach (var session in stopped)

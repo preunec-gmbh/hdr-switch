@@ -232,6 +232,9 @@ internal sealed class SettingsForm : Form
         }
     }
 
+    /// <summary>"Check for updates now". The tray owns the update flow, so the form only asks.</summary>
+    internal event EventHandler? CheckForUpdatesRequested;
+
     internal event EventHandler<AppSettings>? SettingsChanged;
 
     internal void NotifyDisplaysChanged(IReadOnlyList<DisplayTarget> displays)
@@ -306,6 +309,21 @@ internal sealed class SettingsForm : Form
         cli.SetBounds(16, y, 570, 96);
         cli.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         page.Controls.Add(cli);
+        y += 110;
+
+        var updatesHeader = new Label
+        {
+            Text = $"Updates — you have version {UpdateFlow.CurrentVersionText}",
+            AutoSize = true,
+            Font = new Font(Font, FontStyle.Bold),
+            Location = new Point(16, y),
+        };
+        page.Controls.Add(updatesHeader);
+        y += 26;
+
+        var checkNow = new Button { Text = "Check for updates now", AutoSize = true, Height = 28, Location = new Point(16, y) };
+        checkNow.Click += (_, _) => CheckForUpdatesRequested?.Invoke(this, EventArgs.Empty);
+        page.Controls.Add(checkNow);
 
         return page;
     }

@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using HdrSwitch.Core.Cli;
+using HdrSwitch.Core.Updates;
 using HdrSwitch.Ui;
 
 namespace HdrSwitch;
@@ -29,11 +31,23 @@ internal static class Program
             return ConsoleRunner.Run(options);
         }
 
-        return RunTray();
+        return RunTray(options.AfterUpdatePid);
     }
 
-    private static int RunTray()
+    private static int RunTray(int? afterUpdatePid)
     {
+        if (afterUpdatePid is { } oldPid)
+        {
+            // Started by the previous version during an update. It exits right after launching
+            // us, but until it does it holds the single-instance mutex.
+            WaitForExit(oldPid, TimeSpan.FromSeconds(15));
+        }
+
+        if (Environment.ProcessPath is { } exePath)
+        {
+            UpdateInstaller.CleanUp(exePath);
+        }
+
         using var mutex = new Mutex(initiallyOwned: true, SingleInstanceMutex, out var isFirstInstance);
 
         if (!isFirstInstance)
@@ -55,13 +69,30 @@ internal static class Program
 
         try
         {
-            using var context = new TrayApplicationContext();
+            using var context = new TrayApplicationContext(justUpdated: afterUpdatePid is not null);
             Application.Run(context);
             return ExitCodes.Ok;
         }
         finally
         {
             GC.KeepAlive(mutex);
+        }
+    }
+
+    private static void WaitForExit(int pid, TimeSpan timeout)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            process.WaitForExit(timeout);
+        }
+        catch (ArgumentException)
+        {
+            // Already gone.
+        }
+        catch (InvalidOperationException)
+        {
+            // Exited between the lookup and the wait.
         }
     }
 }

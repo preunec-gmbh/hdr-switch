@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---|---|
-| 1.0.x | ✅ |
-| < 1.0 | ❌ |
+| 1.1.x | ✅ |
+| < 1.1 | ❌ |
 
 Only the latest release receives fixes.
 
@@ -32,11 +32,22 @@ Worth knowing when judging whether something is a security issue:
 | `HKCU\…\Themes\Personalize` | Read only | Light/dark theme. |
 | Running process names | Read | Only when the opt-in process fallback or a game rule is enabled. |
 | `%APPDATA%\HdrSwitch\settings.json` | Read + write | Preferences and learned per-app rules. |
+| The folder `HdrSwitch.exe` runs from | Write | Only while installing an update: `HdrSwitch.exe.download`, then `HdrSwitch.exe.old`, which the new version deletes. |
+| `api.github.com`, `github.com` (HTTPS) | Outbound | Only when checking for or installing an update — see below. |
 
 Deliberate properties:
 
-- **No network access whatsoever.** The app makes no outbound connections, has no telemetry, no
-  update check, and no analytics. It ships with zero third-party NuGet dependencies.
+- **No network access unless you ask for an update.** No telemetry, no analytics, and zero
+  third-party NuGet dependencies. The only outbound requests are the update check — an
+  unauthenticated GET of this repository's latest release from the public GitHub API — and, if
+  you click *Update now*, the download of that release's `HdrSwitch.exe` and `HdrSwitch.exe.sha256`.
+  Nothing about you or your machine is sent beyond what any HTTPS request carries. The check runs
+  only when you choose *Check for updates* — there is no automatic, scheduled or startup check.
+- **Updates are verified before they replace anything.** Downloads are only accepted from this
+  repository's `releases/download/` URLs, and the file must match the release's published
+  SHA-256 or it is discarded. Note what that proves: the checksum comes from the same release as
+  the binary, so it catches a corrupted or truncated download, not a compromised release. The
+  binary is not code-signed yet (see below).
 - **Runs as `asInvoker`.** It never requests elevation, and nothing it does requires it.
 - **It reads a privacy surface and keeps it minimal.** Screen-capture detection reads *that* an
   application is capturing and *which executable* it is — never what is on screen, never the

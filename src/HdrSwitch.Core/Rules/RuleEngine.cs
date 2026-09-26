@@ -41,6 +41,12 @@ public sealed class AppRule
     public int TurnOffCount { get; set; }
 
     public int KeepCount { get; set; }
+
+    /// <summary>
+    /// Stable ids of the displays the user last chose to switch off for this app. Empty means
+    /// every display with HDR on -- which is also what rules learned before this existed mean.
+    /// </summary>
+    public List<string> DisplayIds { get; set; } = [];
 }
 
 /// <summary>
@@ -96,10 +102,24 @@ public sealed class RuleEngine
         _ => CaptureDecision.Ask,
     };
 
-    /// <summary>Records an answer and returns the rule state after any promotion.</summary>
-    public RuleState RecordAnswer(string appKey, string displayName, CaptureAnswer answer)
+    /// <summary>
+    /// Records an answer and returns the rule state after any promotion. For
+    /// <see cref="CaptureAnswer.TurnOff"/>, <paramref name="displayIds"/> is which displays the user
+    /// picked; it replaces what was remembered, because the latest choice is the best guess for
+    /// the next share. Null leaves the remembered displays alone.
+    /// </summary>
+    public RuleState RecordAnswer(
+        string appKey,
+        string displayName,
+        CaptureAnswer answer,
+        IReadOnlyCollection<string>? displayIds = null)
     {
         var rule = GetOrCreate(appKey, displayName);
+
+        if (answer == CaptureAnswer.TurnOff && displayIds is not null)
+        {
+            rule.DisplayIds = [.. displayIds];
+        }
 
         switch (answer)
         {
@@ -144,6 +164,28 @@ public sealed class RuleEngine
         rule.State = RuleState.Ask;
         rule.TurnOffCount = 0;
         rule.KeepCount = 0;
+        rule.DisplayIds = [];
+    }
+
+    /// <summary>
+    /// Which of the displays that currently have HDR on an automatic rule should switch off.
+    /// Only the remembered ones -- the point is to leave the screen that is not being shared
+    /// alone. When none of the remembered displays is on (or nothing was remembered), all of
+    /// them: a rule that silently did nothing would be worse than one that did too much, and the
+    /// Undo is right there.
+    /// </summary>
+    public static IReadOnlyList<string> SelectDisplays(AppRule? rule, IReadOnlyList<string> hdrOnDisplayIds)
+    {
+        if (rule is null || rule.DisplayIds.Count == 0)
+        {
+            return hdrOnDisplayIds;
+        }
+
+        var remembered = hdrOnDisplayIds
+            .Where(id => rule.DisplayIds.Contains(id, StringComparer.OrdinalIgnoreCase))
+            .ToList();
+
+        return remembered.Count > 0 ? remembered : hdrOnDisplayIds;
     }
 
     /// <summary>Set a rule directly from the Settings UI, clearing learned counters.</summary>

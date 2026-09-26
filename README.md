@@ -49,7 +49,8 @@ no NuGet dependencies.
 | | |
 |---|---|
 | **Tray icon** | Left-click flips HDR on every capable display. Right-click for per-display control. The icon reflects the real state, even when you change HDR from Windows Settings or `Win+Alt+B`. |
-| **Screen-share awareness** | When an app starts capturing while HDR is on, you get a prompt: *Turn HDR off* / *Keep HDR* / *Never ask for this app*. Answer the same way twice and it starts doing it for you — with an Undo that also unlearns. |
+| **Screen-share awareness** | When an app starts sharing your screen while HDR is on, you get a prompt: *Turn HDR off* / *Keep HDR* / *Never ask for this app*. With several HDR screens on, it asks which one you are sharing, so the other keeps HDR. Answer the same way twice and it starts doing it for you — with an Undo that also unlearns. |
+| **Updates** | *Check for updates…* in the tray menu. One click downloads the new release, verifies it against the published SHA-256, swaps the exe in place and restarts. It only ever checks when you ask — there is no background check. |
 | **Global hotkey** | `Ctrl+Alt+H` by default, configurable. |
 | **Command line** | `HdrSwitch.exe toggle` and friends, for shortcuts, Stream Deck, AutoHotkey, or scripts. |
 | **Start with Windows** | Per-user Run key, no elevation. |
@@ -116,6 +117,38 @@ it reacts in a few hundred milliseconds — no polling of graphics APIs, no inje
 no elevation.
 
 Every modern capture app registers there: Discord, Chrome, Edge, OBS, Teams, Zoom, Slack.
+
+### Only acting once sharing has really started
+
+A capture record is not the same as a share. In a Chromium browser, opening the
+getDisplayMedia picker (Google Meet's *Present now*) already writes `Start` — the picker draws
+live thumbnails of every screen and window. Measured against Chrome 153:
+
+```
+picker opens         Start, Stop = 0        <- nothing is shared yet
+user presses Share   Stop                   <- thumbnails torn down
+~3 s later           a new Start, Stop = 0  <- the real capture
+user cancels         Stop, nothing after
+```
+
+So every capture is *pending* until it is confirmed (`Sharing/CaptureConfirmer.cs`):
+
+- A capture that ends while pending — a cancelled picker, a single-frame thumbnail grab — is
+  ignored.
+- An ordinary app is confirmed after its capture has stayed open for 1.5 s.
+- A Chromium browser (Chrome, Edge, Brave, Opera, Vivaldi, Arc…) is confirmed by the
+  **hand-off**: a capture that starts within 8 s of the previous one ending. A capture that just
+  stays open is the picker on screen; it is confirmed only after 60 s, as a backstop for shares
+  that skip the picker. Sharing a *tab* never produces the second capture, so it never prompts.
+- A confirmed share that ends is held for 5 s before it counts as stopped, so switching the
+  shared source does not flip HDR off and on.
+
+### Which screen
+
+Windows does not say which display is being captured. Chrome's own "is sharing your screen"
+bar always sits on the primary display, whichever screen was picked. So when more than one
+display has HDR on, the prompt asks — one button per screen, plus *All screens* — and the rule
+remembers the pick for next time.
 
 **Rules are keyed on the executable file name, not its full path.** Discord reinstalls into a
 version-stamped folder (`…\app-1.0.9254\Discord.exe`) on every update, so a path-based key would
@@ -232,13 +265,14 @@ src/HdrSwitch.Core/     all logic, no UI — this is what the tests cover
   Hdr/                  display enumeration, HDR read/write, Auto HDR
   Sharing/              consent-store reader and the change watcher
   Rules/                the suggest-then-learn engine, game watcher
+  Updates/              release check, download + SHA-256 verify, exe swap
   Config/               settings, hotkey parsing, startup registration
   Cli/                  argument parsing and output DTOs
 src/HdrSwitch/          WinForms tray app, toast, settings window
   Brand/                vendored wordmark + metrics (see VENDORED.md)
   Ui/Brand.cs           design tokens mirrored from design-system-kit
   Ui/Wordmark.cs        renders the outlined wordmark SVG
-tests/HdrSwitch.Tests/  96 tests over the pure logic
+tests/HdrSwitch.Tests/  138 tests over the pure logic
 ```
 
 Settings live in `%APPDATA%\HdrSwitch\settings.json`. An unreadable file is renamed to
@@ -250,8 +284,8 @@ Settings live in `%APPDATA%\HdrSwitch\settings.json`. An unreadable file is rena
   `list`) but there is no documented setter — only the undocumented `SET_RESERVED1`. Not worth
   the risk.
 - **Separate WCG control.** Reported, not toggled.
-- **Knowing *what* is shared** (a window vs the whole display). The consent store does not
-  expose it.
+- **Detecting *what* is shared** (a window vs the whole display, or which display). The consent
+  store does not expose it, so the prompt asks which screen instead of guessing.
 
 ## Known limitations
 

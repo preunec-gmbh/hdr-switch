@@ -136,4 +136,51 @@ public class RuleEngineTests
         Assert.True(engine.Remove("discord.exe"));
         Assert.Equal(CaptureDecision.Ask, engine.Decide("discord.exe"));
     }
+
+    [Fact]
+    public void TurnOffAnswer_RemembersTheChosenScreens()
+    {
+        var engine = NewEngine();
+        engine.RecordAnswer("chrome.exe", "Chrome", CaptureAnswer.TurnOff, ["display-b"]);
+
+        Assert.Equal(["display-b"], engine.Find("chrome.exe")!.DisplayIds);
+
+        // The latest pick replaces the old one; a Keep answer does not touch it.
+        engine.RecordAnswer("chrome.exe", "Chrome", CaptureAnswer.TurnOff, ["display-a"]);
+        engine.RecordAnswer("chrome.exe", "Chrome", CaptureAnswer.Keep, ["display-b"]);
+        Assert.Equal(["display-a"], engine.Find("chrome.exe")!.DisplayIds);
+    }
+
+    [Fact]
+    public void Undo_ForgetsTheChosenScreens()
+    {
+        var engine = NewEngine();
+        engine.RecordAnswer("chrome.exe", "Chrome", CaptureAnswer.TurnOff, ["display-b"]);
+
+        engine.Undo("chrome.exe");
+
+        Assert.Empty(engine.Find("chrome.exe")!.DisplayIds);
+    }
+
+    [Fact]
+    public void SelectDisplays_LeavesTheScreenThatIsNotSharedAlone()
+    {
+        var rule = new AppRule { AppKey = "chrome.exe", DisplayIds = ["display-b"] };
+
+        Assert.Equal(["display-b"], RuleEngine.SelectDisplays(rule, ["display-a", "display-b"]));
+    }
+
+    [Fact]
+    public void SelectDisplays_FallsBackToEveryHdrScreen()
+    {
+        var hdrOn = new List<string> { "display-a", "display-b" };
+
+        // Nothing remembered: a rule learned before per-screen choice existed.
+        Assert.Equal(hdrOn, RuleEngine.SelectDisplays(new AppRule { AppKey = "discord.exe" }, hdrOn));
+        Assert.Equal(hdrOn, RuleEngine.SelectDisplays(null, hdrOn));
+
+        // The remembered screen is unplugged or already SDR.
+        var stale = new AppRule { AppKey = "chrome.exe", DisplayIds = ["display-gone"] };
+        Assert.Equal(hdrOn, RuleEngine.SelectDisplays(stale, hdrOn));
+    }
 }

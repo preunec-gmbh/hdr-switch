@@ -7,6 +7,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-09-26
+
+### Added
+
+- **Check for updates, and install in one click.** *Check for updates…* in the tray menu and in
+  Settings. When a release is newer, *Update now* downloads it, verifies it against the
+  published SHA-256, swaps `HdrSwitch.exe` in place (same path, so Start with Windows and
+  shortcuts keep working) and restarts into the new version, which confirms the update. A
+  failed download or a checksum mismatch changes nothing. It only checks when you click —
+  there is no automatic or background check, so HDR Switch still makes no network connection
+  on its own.
+- **Only the shared screen loses HDR.** With more than one HDR display on, the prompt asks which
+  screen is being shared (one button per screen, plus *All screens*), and the rule remembers the
+  pick, so a learned rule switches off only that screen.
+
+### Fixed
+
+- **HDR switched off while the screen picker was still open.** Chromium browsers (Google Meet in
+  Chrome or Edge) record a capture as soon as the picker opens, to draw its live thumbnails.
+  HDR Switch took that as a share, then restored HDR when Share was pressed and switched it off
+  again when the real capture started. Captures are now confirmed before anything happens:
+  browsers by the picker → real-capture hand-off, other apps after 1.5 s. A cancelled picker
+  or a tab share no longer prompts at all, and switching the shared source no longer flips HDR.
+
 ## [1.0.1] — 2026-08-19
 
 ### Added
@@ -65,6 +89,7 @@ First release.
 - The process-name fallback for legacy capture tools is **off by default**: it cannot distinguish
   an application being open from one actually sharing.
 
-[Unreleased]: https://github.com/preunec-gmbh/hdr-switch/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/preunec-gmbh/hdr-switch/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/preunec-gmbh/hdr-switch/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/preunec-gmbh/hdr-switch/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/preunec-gmbh/hdr-switch/releases/tag/v1.0.0

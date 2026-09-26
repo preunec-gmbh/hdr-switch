@@ -24,6 +24,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly NotifyIcon _tray;
     private readonly MessageWindow _window;
     private readonly System.Windows.Forms.Timer _refreshTimer = new();
+    private readonly UpdateFlow _updates;
 
     /// <summary>Displays we switched off for a given capturing app, so they can be restored.</summary>
     private readonly Dictionary<string, List<string>> _sharingRestore = new(StringComparer.OrdinalIgnoreCase);
@@ -39,7 +40,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private IReadOnlyList<DisplayTarget> _displays = [];
     private string? _hotkeyWarning;
 
-    internal TrayApplicationContext()
+    internal TrayApplicationContext(bool justUpdated = false)
     {
         _settings = _store.Load();
         _rules = new RuleEngine(_settings.AppRules);
@@ -68,6 +69,13 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _refreshTimer.Interval = RefreshIntervalMs;
         _refreshTimer.Tick += (_, _) => RefreshDisplays(updateIcon: true);
         _refreshTimer.Start();
+
+        _updates = new UpdateFlow(exitApplication: ExitApplication);
+
+        if (justUpdated)
+        {
+            UpdateFlow.AnnounceUpdated();
+        }
 
         if (_store.LoadWarning is { } warning)
         {
@@ -228,6 +236,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
         var settings = new ToolStripMenuItem("Settings…");
         settings.Click += (_, _) => OpenSettings();
         menu.Items.Add(settings);
+
+        var updates = new ToolStripMenuItem("Check for updates…");
+        updates.Click += (_, _) => _ = _updates.CheckNowAsync();
+        menu.Items.Add(updates);
 
         if (_hotkeyWarning is { } warning)
         {
@@ -400,7 +412,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
                 return;
 
             case CaptureDecision.TurnOffAutomatically:
-                TurnOffForSharing(session, affected, learned: true);
+                var chosen = RuleEngine.SelectDisplays(
+                    _rules.Find(session.AppKey), affected.Select(d => d.StableId).ToList());
+                TurnOffForSharing(session, affected.Where(d => chosen.Contains(d.StableId)).ToList(), learned: true);
                 return;
 
             default:
@@ -415,29 +429,37 @@ internal sealed class TrayApplicationContext : ApplicationContext
         var detail = approximate
             ? $"{session.AppName} is running and may be capturing. HDR is on for {displayNames}, " +
               "which usually looks washed out and desaturated to whoever is watching."
-            : $"HDR is on for {displayNames}. Captured HDR usually reaches viewers washed out " +
-              "and desaturated, because it gets flattened to SDR on the way.";
+            : affected.Count > 1
+                ? $"HDR is on for {affected.Count} screens. Which one are you sharing? " +
+                  "The other keeps HDR; captured HDR reaches viewers washed out."
+                : $"HDR is on for {displayNames}. Captured HDR usually reaches viewers washed out " +
+                  "and desaturated, because it gets flattened to SDR on the way.";
 
         ToastWindow.ShowSuggestion(
             session.AppName,
-            $"{session.AppName} is capturing your screen",
+            approximate ? $"{session.AppName} may be capturing your screen" : $"{session.AppName} is sharing your screen",
             detail,
             _settings.ToastSeconds,
-            answer =>
+            affected.Select(d => (d.StableId, d.Label)).ToList(),
+            (answer, displayIds) =>
             {
-                var state = _rules.RecordAnswer(session.AppKey, session.AppName, answer);
+                var state = _rules.RecordAnswer(session.AppKey, session.AppName, answer, displayIds);
                 Save();
 
                 if (answer == CaptureAnswer.TurnOff)
                 {
-                    TurnOffForSharing(session, affected, learned: false);
+                    var targets = displayIds is null
+                        ? affected
+                        : affected.Where(d => displayIds.Contains(d.StableId)).ToList();
+                    TurnOffForSharing(session, targets, learned: false);
 
                     if (state == RuleState.AutoTurnOff)
                     {
                         ToastWindow.ShowNotice(
                             $"Learned: HDR off for {session.AppName}",
-                            "Next time it shares your screen, HDR will switch off automatically. " +
-                            "You can change this in Settings.",
+                            "Next time it shares your screen, HDR will switch off automatically" +
+                            (affected.Count > 1 ? " on the screen you picked" : string.Empty) +
+                            ". You can change this in Settings.",
                             ShortNoticeSeconds + 3);
                     }
                 }
@@ -475,7 +497,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
         // unlearn -- otherwise a rule learned by mistake can only be fixed from Settings.
         ToastWindow.ShowNotice(
             "HDR off — " + session.AppName + " is sharing",
-            "HDR Switch did this automatically because that is what you chose before.",
+            $"Switched off on {string.Join(", ", affected.Where(d => turnedOff.Contains(d.StableId)).Select(d => d.Label))}" +
+            (_displays.Any(d => d.CanToggle && d.HdrEnabled) ? ", other screens left alone" : string.Empty) +
+            ", because that is what you chose before.",
             _settings.ToastSeconds,
             actionText: "Undo and ask me next time",
             onAction: () =>
@@ -656,6 +680,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         _settingsForm = new SettingsForm(_settings, _rules, _displays);
         _settingsForm.SettingsChanged += OnSettingsChanged;
+        _settingsForm.CheckForUpdatesRequested += (_, _) => _ = _updates.CheckNowAsync();
         _settingsForm.FormClosed += (_, _) => _settingsForm = null;
         _settingsForm.Show();
         _settingsForm.Activate();
@@ -684,6 +709,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             _refreshTimer.Stop();
             _refreshTimer.Dispose();
+            _updates.Dispose();
             _captureWatcher?.Dispose();
             _gameWatcher?.Dispose();
             _window.Dispose();

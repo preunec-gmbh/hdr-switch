@@ -65,6 +65,7 @@ public sealed class AppSettings
             State = r.State,
             TurnOffCount = r.TurnOffCount,
             KeepCount = r.KeepCount,
+            DisplayIds = [.. r.DisplayIds],
         }).ToList(),
         ProcessHeuristicEnabled = ProcessHeuristicEnabled,
         ProcessWatchList = [.. ProcessWatchList],

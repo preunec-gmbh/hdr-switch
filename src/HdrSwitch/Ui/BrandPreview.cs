@@ -188,11 +188,20 @@ internal static class BrandPreview
 
         var suggestion = ToastWindow.ShowSuggestion(
             "Discord",
-            "Discord is capturing your screen",
+            "Discord is sharing your screen",
             "HDR is on for LS27AG55x. Captured HDR usually reaches viewers washed out and "
             + "desaturated, because it gets flattened to SDR on the way.",
             60,
-            _ => { });
+            [("preview-1", "LS27AG55x")],
+            (_, _) => { });
+
+        var pickScreen = ToastWindow.ShowSuggestion(
+            "Google Chrome",
+            "Google Chrome is sharing your screen",
+            "HDR is on for 2 screens. Which one are you sharing? The other keeps HDR.",
+            60,
+            [("preview-1", "LS27AG55x"), ("preview-2", "U28E590")],
+            (_, _) => { });
 
         var notice = ToastWindow.ShowNotice(
             "HDR off — Discord is sharing",
@@ -201,7 +210,7 @@ internal static class BrandPreview
             "Undo and ask me next time",
             () => { });
 
-        foreach (var (toast, name) in new[] { (suggestion, "suggestion"), (notice, "notice") })
+        foreach (var (toast, name) in new[] { (suggestion, "suggestion"), (pickScreen, "pick-screen"), (notice, "notice") })
         {
             toast.Opacity = 1;
             toast.Refresh();
