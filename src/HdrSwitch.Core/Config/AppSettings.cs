@@ -1,3 +1,4 @@
+using HdrSwitch.Core.Localization;
 using HdrSwitch.Core.Rules;
 
 namespace HdrSwitch.Core.Config;
@@ -53,6 +54,9 @@ public sealed class AppSettings
     /// <summary>Set once the first-run explanation has been shown.</summary>
     public bool IntroShown { get; set; }
 
+    /// <summary>Interface language. Automatic follows the Windows display language.</summary>
+    public UiLanguage Language { get; set; } = UiLanguage.Automatic;
+
     public AppSettings Clone() => new()
     {
         Version = Version,
@@ -82,5 +86,6 @@ public sealed class AppSettings
         ShowBalloonOnToggle = ShowBalloonOnToggle,
         ToastSeconds = ToastSeconds,
         IntroShown = IntroShown,
+        Language = Language,
     };
 }

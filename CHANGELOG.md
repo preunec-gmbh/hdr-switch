@@ -7,6 +7,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-09-26
+
+### Added
+
+- **The tray shows who is sharing your screen.** While a share is on, the tray icon carries a
+  red dot, the tooltip names the app, and the menu says what HDR Switch did — with *Restore HDR
+  now* when it switched HDR off, or *Turn HDR off now…* when it did not.
+- **Update prompts say what is new.** The "new version available" prompt lists the release's
+  highlights. Release notes now come from this changelog, and the release workflow refuses to
+  publish a version that has no section here.
+- **Turkish and German interface.** HDR Switch follows the Windows display language, or a
+  language picked in Settings. The command line stays English, because scripts read its output.
+
+### Fixed
+
+- The last line of a longer notification could be clipped; toasts now size their text the way
+  it is actually drawn.
+
 ## [1.1.0] — 2026-09-26
 
 ### Added
@@ -89,7 +107,8 @@ First release.
 - The process-name fallback for legacy capture tools is **off by default**: it cannot distinguish
   an application being open from one actually sharing.
 
-[Unreleased]: https://github.com/preunec-gmbh/hdr-switch/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/preunec-gmbh/hdr-switch/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/preunec-gmbh/hdr-switch/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/preunec-gmbh/hdr-switch/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/preunec-gmbh/hdr-switch/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/preunec-gmbh/hdr-switch/releases/tag/v1.0.0

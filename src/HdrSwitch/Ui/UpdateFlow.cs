@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using HdrSwitch.Core.Localization;
 using HdrSwitch.Core.Updates;
 
 namespace HdrSwitch.Ui;
@@ -39,10 +40,10 @@ internal sealed class UpdateFlow : IDisposable
 
     internal static void AnnounceUpdated() =>
         ToastWindow.ShowNotice(
-            $"HDR Switch updated to {CurrentVersionText}",
-            "Your settings and learned rules carried over.",
+            L.F("HDR Switch updated to {0}", CurrentVersionText),
+            L.T("Your settings and learned rules carried over."),
             NoticeSeconds,
-            actionText: "What's new",
+            actionText: L.T("What's new"),
             onAction: () => OpenUrl(UpdateChecker.ReleasesPage));
 
     /// <summary>The tray menu / Settings button. Always reports a result, including "up to date".</summary>
@@ -63,15 +64,15 @@ internal sealed class UpdateFlow : IDisposable
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
             {
-                ToastWindow.ShowNotice("Could not check for updates", Describe(ex), NoticeSeconds);
+                ToastWindow.ShowNotice(L.T("Could not check for updates"), Describe(ex), NoticeSeconds);
                 return;
             }
 
             if (release is null || !UpdateChecker.IsNewer(release, UpdateChecker.CurrentVersion))
             {
                 ToastWindow.ShowNotice(
-                    "HDR Switch is up to date",
-                    $"You have version {CurrentVersionText}, the latest release.",
+                    L.T("HDR Switch is up to date"),
+                    L.F("You have version {0}, the latest release.", CurrentVersionText),
                     NoticeSeconds - 3);
                 return;
             }
@@ -91,21 +92,37 @@ internal sealed class UpdateFlow : IDisposable
         if (!CanSelfUpdate)
         {
             ToastWindow.ShowNotice(
-                $"HDR Switch {version} is available",
-                $"You have {CurrentVersionText}. This build cannot update itself; download the new one from the release page.",
+                L.F("HDR Switch {0} is available", version),
+                L.F("You have {0}. This build cannot update itself; download the new one from the release page.", CurrentVersionText),
                 20,
-                actionText: "Open release page",
+                actionText: L.T("Open release page"),
                 onAction: () => OpenUrl(release.PageUrl));
             return;
         }
 
         ToastWindow.ShowNotice(
-            $"HDR Switch {version} is available",
-            $"You have {CurrentVersionText}. Updating takes a few seconds: HDR Switch downloads the new " +
-            "version, checks it against the published SHA-256, and restarts.",
+            L.F("HDR Switch {0} is available", version),
+            DescribeUpdate(release),
             30,
-            actionText: "Update now",
+            actionText: L.T("Update now"),
             onAction: () => _ = InstallAsync(release));
+    }
+
+    /// <summary>"What's new" first, when the release notes have it; then what clicking will do.</summary>
+    internal static string DescribeUpdate(ReleaseInfo release)
+    {
+        var lines = new List<string>();
+
+        if (release.Highlights.Count > 0)
+        {
+            lines.Add(L.T("What's new:"));
+            lines.AddRange(release.Highlights.Select(h => "•  " + h));
+            lines.Add(string.Empty);
+        }
+
+        lines.Add(L.F("You have {0}. Updating downloads the new version, checks it against the published SHA-256 and restarts, in a few seconds.", CurrentVersionText));
+
+        return string.Join(Environment.NewLine, lines);
     }
 
     private async Task InstallAsync(ReleaseInfo release)
@@ -117,7 +134,7 @@ internal sealed class UpdateFlow : IDisposable
 
         _busy = true;
         var version = release.Version.ToString(3);
-        var progress = ToastWindow.ShowNotice($"Updating to {version}…", "Downloading.", 120);
+        var progress = ToastWindow.ShowNotice(L.F("Updating to {0}…", version), L.T("Downloading."), 120);
 
         try
         {
@@ -138,8 +155,8 @@ internal sealed class UpdateFlow : IDisposable
             {
                 // The new exe is already in place; only the restart failed.
                 ToastWindow.ShowNotice(
-                    $"Updated to {version} — restart to finish",
-                    $"The new version is installed but did not start ({ex.Message}). Exit HDR Switch and start it again.",
+                    L.F("Updated to {0} — restart to finish", version),
+                    L.F("The new version is installed but did not start ({0}). Exit HDR Switch and start it again.", ex.Message),
                     20);
                 return;
             }
@@ -151,15 +168,14 @@ internal sealed class UpdateFlow : IDisposable
             progress.Dismiss();
 
             var detail = ex is UnauthorizedAccessException
-                ? $"HDR Switch cannot write to {Path.GetDirectoryName(exePath)}. Move HdrSwitch.exe to a folder " +
-                  "you own (for example Documents or Desktop), or download the update by hand."
+                ? L.F("HDR Switch cannot write to {0}. Move HdrSwitch.exe to a folder you own (for example Documents or Desktop), or download the update by hand.", Path.GetDirectoryName(exePath))
                 : Describe(ex);
 
             ToastWindow.ShowNotice(
-                "Update failed — nothing was changed",
+                L.T("Update failed — nothing was changed"),
                 detail,
                 20,
-                actionText: "Open release page",
+                actionText: L.T("Open release page"),
                 onAction: () => OpenUrl(release.PageUrl));
         }
         finally
@@ -172,9 +188,9 @@ internal sealed class UpdateFlow : IDisposable
 
     private static string Describe(Exception ex) => ex switch
     {
-        TaskCanceledException => "GitHub did not answer in time. Check your connection and try again.",
-        HttpRequestException { StatusCode: { } code } => $"GitHub answered {(int)code} {code}.",
-        HttpRequestException => "Could not reach GitHub. Check your connection and try again.",
+        TaskCanceledException => L.T("GitHub did not answer in time. Check your connection and try again."),
+        HttpRequestException { StatusCode: { } code } => L.F("GitHub answered {0} {1}.", (int)code, code),
+        HttpRequestException => L.T("Could not reach GitHub. Check your connection and try again."),
         _ => ex.Message,
     };
 
@@ -186,7 +202,7 @@ internal sealed class UpdateFlow : IDisposable
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
-            ToastWindow.ShowNotice("Could not open the browser", url, NoticeSeconds);
+            ToastWindow.ShowNotice(L.T("Could not open the browser"), url, NoticeSeconds);
         }
     }
 

@@ -1,3 +1,5 @@
+using HdrSwitch.Core.Localization;
+
 namespace HdrSwitch.Core.Config;
 
 /// <summary>A parsed global hotkey, ready for RegisterHotKey.</summary>
@@ -32,7 +34,7 @@ public static class HotkeyParser
 
         if (string.IsNullOrWhiteSpace(input))
         {
-            error = "No hotkey specified.";
+            error = L.T("No hotkey specified.");
             return false;
         }
 
@@ -62,13 +64,13 @@ public static class HotkeyParser
 
             if (keyToken.Length > 0)
             {
-                error = $"'{input}' names more than one key. Use modifiers plus a single key.";
+                error = L.F("'{0}' names more than one key. Use modifiers plus a single key.", input);
                 return false;
             }
 
             if (!TryParseKey(part, out virtualKey))
             {
-                error = $"'{part}' is not a key HDR Switch recognises.";
+                error = L.F("'{0}' is not a key HDR Switch recognises.", part);
                 return false;
             }
 
@@ -77,14 +79,14 @@ public static class HotkeyParser
 
         if (keyToken.Length == 0)
         {
-            error = $"'{input}' has no main key -- add one, e.g. Ctrl+Alt+H.";
+            error = L.F("'{0}' has no main key -- add one, e.g. Ctrl+Alt+H.", input);
             return false;
         }
 
         if (modifiers == 0)
         {
             // A bare key would swallow that key system-wide. Refuse rather than break typing.
-            error = "A global hotkey needs at least one modifier (Ctrl, Alt, Shift or Win).";
+            error = L.T("A global hotkey needs at least one modifier (Ctrl, Alt, Shift or Win).");
             return false;
         }
 

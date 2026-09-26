@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using HdrSwitch.Core.Config;
 
+using HdrSwitch.Core.Localization;
+
 namespace HdrSwitch.Ui;
 
 /// <summary>
@@ -72,8 +74,8 @@ internal sealed class MessageWindow : NativeWindow, IDisposable
 
         var error = Marshal.GetLastWin32Error();
         return error == 1409 // ERROR_HOTKEY_ALREADY_REGISTERED
-            ? $"{hotkey.Text} is already claimed by another application. Pick a different combination in Settings."
-            : $"Could not register {hotkey.Text} (Win32 error {error}).";
+            ? L.F("{0} is already claimed by another application. Pick a different combination in Settings.", hotkey.Text)
+            : L.F("Could not register {0} (Win32 error {1}).", hotkey.Text, error);
     }
 
     internal void UnregisterHotkey()

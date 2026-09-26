@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using HdrSwitch.Core.Localization;
 
 namespace HdrSwitch.Core.Config;
 
@@ -57,7 +58,7 @@ public sealed class SettingsStore
         {
             // Losing preferences is annoying; refusing to start is worse. Keep the bad file
             // alongside so it can be inspected rather than overwriting it silently.
-            LoadWarning = $"Could not read settings ({ex.Message}). Defaults are in use.";
+            LoadWarning = L.F("Could not read settings ({0}). Defaults are in use.", ex.Message);
             TryPreserveCorruptFile();
             return new AppSettings();
         }

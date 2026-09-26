@@ -1,3 +1,5 @@
+using HdrSwitch.Core.Localization;
+
 namespace HdrSwitch.Core.Hdr;
 
 /// <summary>Which CCD API generation the controller resolved to at startup.</summary>
@@ -79,13 +81,13 @@ public sealed record DisplayTarget
 
     /// <summary>Name for menus and CLI output, never empty.</summary>
     public string Label =>
-        !string.IsNullOrWhiteSpace(FriendlyName) ? FriendlyName : $"Display {Index + 1}";
+        !string.IsNullOrWhiteSpace(FriendlyName) ? FriendlyName : L.F("Display {0}", Index + 1);
 
     public string StatusText => Capability switch
     {
-        HdrCapability.Unsupported => "HDR not supported",
-        HdrCapability.BlockedByPolicy => "HDR blocked by system policy",
-        _ => HdrEnabled ? "HDR on" : "HDR off",
+        HdrCapability.Unsupported => L.T("HDR not supported"),
+        HdrCapability.BlockedByPolicy => L.T("HDR blocked by system policy"),
+        _ => HdrEnabled ? L.T("HDR on") : L.T("HDR off"),
     };
 }
 

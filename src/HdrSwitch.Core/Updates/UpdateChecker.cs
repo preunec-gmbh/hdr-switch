@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace HdrSwitch.Core.Updates;
 
@@ -17,6 +18,9 @@ public sealed record ReleaseInfo
 
     /// <summary>The published "&lt;sha256&gt;  HdrSwitch.exe" file for the same release.</summary>
     public required string ChecksumUrl { get; init; }
+
+    /// <summary>Short "what's new" lines from the release notes. May be empty.</summary>
+    public IReadOnlyList<string> Highlights { get; init; } = [];
 }
 
 /// <summary>
@@ -26,7 +30,7 @@ public sealed record ReleaseInfo
 /// request carries (no identifiers, no telemetry). Drafts and pre-releases are never offered,
 /// because /releases/latest excludes them.
 /// </summary>
-public static class UpdateChecker
+public static partial class UpdateChecker
 {
     public const string Repository = "preunec-gmbh/hdr-switch";
     public const string LatestReleaseApi = $"https://api.github.com/repos/{Repository}/releases/latest";
@@ -134,6 +138,9 @@ public static class UpdateChecker
         }
 
         var page = root.TryGetProperty("html_url", out var html) ? html.GetString() : null;
+        var body = root.TryGetProperty("body", out var bodyElement) && bodyElement.ValueKind == JsonValueKind.String
+            ? bodyElement.GetString()
+            : null;
 
         return new ReleaseInfo
         {
@@ -142,8 +149,64 @@ public static class UpdateChecker
             PageUrl = page ?? ReleasesPage,
             ExecutableUrl = exeUrl,
             ChecksumUrl = shaUrl,
+            Highlights = ExtractHighlights(body),
         };
     }
+
+    /// <summary>
+    /// The release body is the version's CHANGELOG section (release.yml puts it there), whose
+    /// top-level bullets open with a bold title: "- **Only the shared screen loses HDR.** With…".
+    /// Those titles are the highlights. A bullet without one contributes its first sentence.
+    /// Nested bullets and everything else are ignored. Pure; unit tested.
+    /// </summary>
+    public static IReadOnlyList<string> ExtractHighlights(string? body, int max = 3)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return [];
+        }
+
+        var highlights = new List<string>();
+
+        foreach (var line in body.ReplaceLineEndings().Split(Environment.NewLine))
+        {
+            if (!line.StartsWith("- ", StringComparison.Ordinal) && !line.StartsWith("* ", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var text = line[2..].Trim();
+            var bold = BoldTitle().Match(text);
+            var highlight = bold.Success ? bold.Groups[1].Value : FirstSentence(text);
+            highlight = Markup().Replace(highlight, string.Empty).Trim().TrimEnd('.');
+
+            if (highlight.Length == 0)
+            {
+                continue;
+            }
+
+            highlights.Add(highlight.Length <= 70 ? highlight : highlight[..67].TrimEnd() + "...");
+            if (highlights.Count == max)
+            {
+                break;
+            }
+        }
+
+        return highlights;
+    }
+
+    private static string FirstSentence(string text)
+    {
+        var end = text.IndexOf(". ", StringComparison.Ordinal);
+        return end > 0 ? text[..end] : text;
+    }
+
+    [GeneratedRegex(@"^\*\*(.+?)\*\*")]
+    private static partial Regex BoldTitle();
+
+    /// <summary>Emphasis and code markers, which a toast would show literally.</summary>
+    [GeneratedRegex(@"[*_`]")]
+    private static partial Regex Markup();
 
     /// <summary>"v1.2.3" or "1.2.3" to a three-part version.</summary>
     public static bool TryParseTag(string tag, out Version version)

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using HdrSwitch.Core.Interop;
+using HdrSwitch.Core.Localization;
 using Microsoft.Win32;
 
 namespace HdrSwitch.Core.Sharing;
@@ -138,8 +139,7 @@ public sealed class CaptureWatcher : IDisposable
                 {
                     reportedDegraded = true;
                     Degraded?.Invoke(this,
-                        "Could not subscribe to registry change notifications; " +
-                        "falling back to polling every 10 seconds.");
+                        L.T("Could not subscribe to registry change notifications; falling back to polling every 10 seconds."));
                 }
 
                 var handles = new WaitHandle[events.Count + 1];

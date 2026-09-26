@@ -1,3 +1,5 @@
+using HdrSwitch.Core.Localization;
+
 namespace HdrSwitch.Core.Cli;
 
 public enum CliCommand
@@ -37,6 +39,9 @@ public sealed record CliOptions
     /// <summary>Output file for commands that write one (brandcheck).</summary>
     public string? OutPath { get; init; }
 
+    /// <summary>brandcheck only: render the UI in this language. Null means English.</summary>
+    public UiLanguage? Language { get; init; }
+
     /// <summary>
     /// Internal: the tray was started by an update, and should wait for this process (the old
     /// version) to exit before taking over. Not in the usage text.
@@ -67,6 +72,7 @@ public static class CommandLine
 
         Options:
           --out <file>         brandcheck only: where to write the preview PNG.
+          --lang <en|de|tr>    brandcheck only: render the interface in this language.
           --display <n|name>   Act on one display: 1-based index, or part of its name.
                                Default is every HDR-capable display.
           --all                Explicitly target all displays (the default).
@@ -98,6 +104,7 @@ public static class CommandLine
         var all = false;
         string? outPath = null;
         int? afterUpdatePid = null;
+        UiLanguage? language = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -143,6 +150,26 @@ public static class CommandLine
 
                     outPath = args[++i];
                     continue;
+                case "--lang":
+                    if (i + 1 >= args.Length)
+                    {
+                        return Fail("--lang needs a language: en, de or tr.");
+                    }
+
+                    language = args[++i].ToLowerInvariant() switch
+                    {
+                        "en" => UiLanguage.English,
+                        "de" => UiLanguage.German,
+                        "tr" => UiLanguage.Turkish,
+                        _ => null,
+                    };
+
+                    if (language is null)
+                    {
+                        return Fail($"Unknown language '{args[i]}'. Use en, de or tr.");
+                    }
+
+                    continue;
                 case "--after-update":
                     if (i + 1 >= args.Length || !int.TryParse(args[i + 1], out var pid) || pid <= 0)
                     {
@@ -185,6 +212,7 @@ public static class CommandLine
             Quiet = quiet,
             OutPath = outPath,
             AfterUpdatePid = afterUpdatePid,
+            Language = language,
         };
     }
 

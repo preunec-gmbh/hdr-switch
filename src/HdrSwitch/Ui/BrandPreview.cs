@@ -1,5 +1,6 @@
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using HdrSwitch.Core.Localization;
 using HdrSwitch.Core.Config;
 using HdrSwitch.Core.Rules;
 
@@ -61,7 +62,14 @@ internal static class BrandPreview
             g.DrawString("at the 80px minimum", labelFont, new SolidBrush(Brand.TextSecondary), 300, 104);
 
             // Tray icons at real sizes.
-            var icons = new[] { ("on", IconFactory.On), ("off", IconFactory.Off), ("blocked", IconFactory.Unavailable) };
+            var icons = new[]
+            {
+                ("on", IconFactory.On),
+                ("off", IconFactory.Off),
+                ("blocked", IconFactory.Unavailable),
+                ("on, sharing", IconFactory.ForState(true, true, sharing: true)),
+                ("off, sharing", IconFactory.ForState(false, true, sharing: true)),
+            };
             var x = 300;
             foreach (var (name, icon) in icons)
             {
@@ -166,7 +174,8 @@ internal static class BrandPreview
             using var shot = new Bitmap(form.Width, form.Height);
             form.DrawToBitmap(shot, new Rectangle(0, 0, form.Width, form.Height));
 
-            var name = tabs?.TabPages[i].Text.Replace(' ', '-').ToLowerInvariant() ?? "settings";
+            // Fixed names, not the tab caption, which changes with --lang.
+            var name = i < TabFileNames.Length ? TabFileNames[i] : $"tab{i}";
             var file = Path.Combine(directory, $"settings-{i}-{name}.png");
             shot.Save(file, ImageFormat.Png);
             written.Add(file);
@@ -181,36 +190,61 @@ internal static class BrandPreview
     /// whole feature is judged on and it only ever appears at an awkward moment, so being able
     /// to look at it on demand matters.
     /// </summary>
+    private static readonly string[] TabFileNames = ["general", "screen-sharing", "games", "advanced"];
+
     internal static IReadOnlyList<string> RenderToasts(string directory)
     {
         Directory.CreateDirectory(directory);
         var written = new List<string>();
 
+        // The real strings, so `brandcheck --lang de|tr` shows what users of that language see.
         var suggestion = ToastWindow.ShowSuggestion(
             "Discord",
-            "Discord is sharing your screen",
-            "HDR is on for LS27AG55x. Captured HDR usually reaches viewers washed out and "
-            + "desaturated, because it gets flattened to SDR on the way.",
+            L.F("{0} is sharing your screen", "Discord"),
+            L.F("HDR is on for {0}. Captured HDR usually reaches viewers washed out and desaturated, because it gets flattened to SDR on the way.", "LS27AG55x"),
             60,
             [("preview-1", "LS27AG55x")],
             (_, _) => { });
 
         var pickScreen = ToastWindow.ShowSuggestion(
             "Google Chrome",
-            "Google Chrome is sharing your screen",
-            "HDR is on for 2 screens. Which one are you sharing? The other keeps HDR.",
+            L.F("{0} is sharing your screen", "Google Chrome"),
+            L.F("HDR is on for {0} screens. Which one are you sharing? The other keeps HDR; captured HDR reaches viewers washed out.", 2),
             60,
             [("preview-1", "LS27AG55x"), ("preview-2", "U28E590")],
             (_, _) => { });
 
         var notice = ToastWindow.ShowNotice(
-            "HDR off — Discord is sharing",
-            "HDR Switch did this automatically because that is what you chose before.",
+            L.F("HDR off — {0} is sharing", "Discord"),
+            L.F("Switched off on {0}, other screens left alone, because that is what you chose before.", "LS27AG55x"),
             60,
-            "Undo and ask me next time",
+            L.T("Undo and ask me next time"),
             () => { });
 
-        foreach (var (toast, name) in new[] { (suggestion, "suggestion"), (pickScreen, "pick-screen"), (notice, "notice") })
+        var update = ToastWindow.ShowNotice(
+            L.F("HDR Switch {0} is available", "1.2.0"),
+            UpdateFlow.DescribeUpdate(new Core.Updates.ReleaseInfo
+            {
+                Version = new Version(1, 2, 0),
+                Tag = "v1.2.0",
+                PageUrl = Core.Updates.UpdateChecker.ReleasesPage,
+                ExecutableUrl = Core.Updates.UpdateChecker.AllowedDownloadPrefix + "v1.2.0/HdrSwitch.exe",
+                ChecksumUrl = Core.Updates.UpdateChecker.AllowedDownloadPrefix + "v1.2.0/HdrSwitch.exe.sha256",
+                Highlights =
+                [
+                    "The tray shows who is sharing your screen",
+                    "Update prompts say what is new",
+                    "Turkish and German interface",
+                ],
+            }),
+            60,
+            L.T("Update now"),
+            () => { });
+
+        foreach (var (toast, name) in new[]
+        {
+            (suggestion, "suggestion"), (pickScreen, "pick-screen"), (notice, "notice"), (update, "update"),
+        })
         {
             toast.Opacity = 1;
             toast.Refresh();

@@ -1,4 +1,5 @@
 using System.Drawing.Drawing2D;
+using HdrSwitch.Core.Localization;
 using HdrSwitch.Core.Rules;
 
 namespace HdrSwitch.Ui;
@@ -85,12 +86,12 @@ internal sealed class ToastWindow : Form
 
         var y = toast.BuildHeader(headline, detail);
         var allIds = displays.Select(d => d.Id).ToList();
-        var keep = toast.MakeButton("Keep HDR", primary: false);
+        var keep = toast.MakeButton(L.T("Keep HDR"), primary: false);
         keep.Click += (_, _) => Answer(CaptureAnswer.Keep);
 
         if (displays.Count <= 1)
         {
-            var turnOff = toast.MakeButton("Turn HDR off", primary: true);
+            var turnOff = toast.MakeButton(L.T("Turn HDR off"), primary: true);
             turnOff.Click += (_, _) => Answer(CaptureAnswer.TurnOff, allIds);
 
             turnOff.Location = new Point(Inset, y);
@@ -103,7 +104,7 @@ internal sealed class ToastWindow : Form
         {
             foreach (var (id, label) in displays)
             {
-                var one = toast.MakeButton($"Turn HDR off on {label}", primary: true);
+                var one = toast.MakeButton(L.F("Turn HDR off on {0}", label), primary: true);
                 one.Width = 400 - (Inset * 2);
                 one.TextAlign = ContentAlignment.MiddleLeft;
                 one.Location = new Point(Inset, y);
@@ -113,7 +114,7 @@ internal sealed class ToastWindow : Form
             }
 
             y += 4;
-            var all = toast.MakeButton("All screens", primary: false);
+            var all = toast.MakeButton(L.T("All screens"), primary: false);
             all.Click += (_, _) => Answer(CaptureAnswer.TurnOff, allIds);
             all.Location = new Point(Inset, y);
             keep.Location = new Point(Inset + all.Width + 8, y);
@@ -124,7 +125,7 @@ internal sealed class ToastWindow : Form
 
         var never = new LinkLabel
         {
-            Text = $"Never ask for {appName}",
+            Text = L.F("Never ask for {0}", appName),
             AutoSize = true,
             Location = new Point(Inset, y),
             LinkColor = Brand.TextSecondary,
@@ -191,8 +192,7 @@ internal sealed class ToastWindow : Form
             Size = new Size(400 - (Inset * 2) - 24, 0),
             AutoSize = false,
         };
-        title.Height = TextRenderer.MeasureText(headline, title.Font, new Size(title.Width, 0),
-            TextFormatFlags.WordBreak).Height + 2;
+        title.Height = MeasuredHeight(title) + 2;
         Controls.Add(title);
         y += title.Height + 6;
 
@@ -205,8 +205,7 @@ internal sealed class ToastWindow : Form
             Size = new Size(400 - (Inset * 2), 0),
             AutoSize = false,
         };
-        body.Height = TextRenderer.MeasureText(detail, body.Font, new Size(body.Width, 0),
-            TextFormatFlags.WordBreak).Height + 4;
+        body.Height = MeasuredHeight(body) + 4;
         Controls.Add(body);
         y += body.Height + 14;
 
@@ -225,6 +224,13 @@ internal sealed class ToastWindow : Form
 
         return y;
     }
+
+    /// <summary>
+    /// The height the label itself will wrap to. Measuring separately with TextRenderer disagreed
+    /// with how the Label draws, and clipped the last line of longer German text.
+    /// </summary>
+    private static int MeasuredHeight(Label label) =>
+        label.GetPreferredSize(new Size(label.Width, 0)).Height;
 
     private Button MakeButton(string text, bool primary)
     {

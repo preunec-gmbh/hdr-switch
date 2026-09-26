@@ -50,7 +50,9 @@ no NuGet dependencies.
 |---|---|
 | **Tray icon** | Left-click flips HDR on every capable display. Right-click for per-display control. The icon reflects the real state, even when you change HDR from Windows Settings or `Win+Alt+B`. |
 | **Screen-share awareness** | When an app starts sharing your screen while HDR is on, you get a prompt: *Turn HDR off* / *Keep HDR* / *Never ask for this app*. With several HDR screens on, it asks which one you are sharing, so the other keeps HDR. Answer the same way twice and it starts doing it for you — with an Undo that also unlearns. |
-| **Updates** | *Check for updates…* in the tray menu. One click downloads the new release, verifies it against the published SHA-256, swaps the exe in place and restarts. It only ever checks when you ask — there is no background check. |
+| **Updates** | *Check for updates…* in the tray menu. The prompt lists what is new; one click downloads the release, verifies it against the published SHA-256, swaps the exe in place and restarts. It only ever checks when you ask — there is no background check. |
+| **Sharing at a glance** | While an app is sharing, the tray icon carries a red dot and the menu says who is sharing and what HDR Switch did — with *Restore HDR now* or *Turn HDR off now…* one click away. |
+| **English, Deutsch, Türkçe** | Follows the Windows display language, or pick one in Settings. The command line stays English, since scripts read it. |
 | **Global hotkey** | `Ctrl+Alt+H` by default, configurable. |
 | **Command line** | `HdrSwitch.exe toggle` and friends, for shortcuts, Stream Deck, AutoHotkey, or scripts. |
 | **Start with Windows** | Per-user Run key, no elevation. |
@@ -245,6 +247,20 @@ resolved instead of leaving it to guesswork.
 
 ## Building
 
+### Releasing
+
+Tag `vX.Y.Z` after adding a `## [X.Y.Z]` section to `CHANGELOG.md`. The release workflow refuses
+to publish without one: that section becomes the release notes, and the **bold title** that opens
+each top-level bullet is what the in-app update prompt lists under "What's new". Release notes
+are English in every interface language.
+
+### Translations
+
+Interface text goes through `L.T("…")` / `L.F("… {0} …", arg)` (`HdrSwitch.Core/Localization`),
+with the English text as the key and German and Turkish in `Translations.cs`. `LocalizationTests`
+reads the source tree and fails if any string lacks a translation, a translation is orphaned, or
+placeholders differ. Review the result with `HdrSwitch.exe brandcheck --lang de` (or `tr`).
+
 Requires the .NET 9 SDK.
 
 ```bash
@@ -266,13 +282,14 @@ src/HdrSwitch.Core/     all logic, no UI — this is what the tests cover
   Sharing/              consent-store reader and the change watcher
   Rules/                the suggest-then-learn engine, game watcher
   Updates/              release check, download + SHA-256 verify, exe swap
+  Localization/         L.T / L.F and the German + Turkish tables
   Config/               settings, hotkey parsing, startup registration
   Cli/                  argument parsing and output DTOs
 src/HdrSwitch/          WinForms tray app, toast, settings window
   Brand/                vendored wordmark + metrics (see VENDORED.md)
   Ui/Brand.cs           design tokens mirrored from design-system-kit
   Ui/Wordmark.cs        renders the outlined wordmark SVG
-tests/HdrSwitch.Tests/  138 tests over the pure logic
+tests/HdrSwitch.Tests/  149 tests over the pure logic
 ```
 
 Settings live in `%APPDATA%\HdrSwitch\settings.json`. An unreadable file is renamed to

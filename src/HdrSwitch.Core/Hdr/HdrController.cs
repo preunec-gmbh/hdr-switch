@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using HdrSwitch.Core.Interop;
 
+using HdrSwitch.Core.Localization;
+
 namespace HdrSwitch.Core.Hdr;
 
 public interface IHdrController
@@ -133,7 +135,7 @@ public sealed class HdrController : IHdrController
                 Requested = enable,
                 Actual = target.HdrEnabled,
                 Win32Error = 0,
-                Message = $"{target.Label} does not support HDR.",
+                Message = L.F("{0} does not support HDR.", target.Label),
             };
         }
 
@@ -154,8 +156,9 @@ public sealed class HdrController : IHdrController
         {
             message = error != 0
                 ? DescribeError(error, target)
-                : $"Windows accepted the change but {target.Label} stayed " +
-                  $"{(actual ? "on" : "off")}. The display or link may not allow it right now.";
+                : actual
+                    ? L.F("Windows accepted the change but {0} stayed on. The display or link may not allow it right now.", target.Label)
+                    : L.F("Windows accepted the change but {0} stayed off. The display or link may not allow it right now.", target.Label);
         }
 
         return new HdrSetResult
@@ -173,15 +176,14 @@ public sealed class HdrController : IHdrController
     private static string DescribeError(int error, DisplayTarget target) => error switch
     {
         DisplayConfigNative.ERROR_INVALID_PARAMETER =>
-            $"Windows rejected the HDR request for {target.Label} (invalid parameter). " +
-            "This usually means the display no longer matches the cached configuration -- rescan and retry.",
+            L.F("Windows rejected the HDR request for {0} (invalid parameter). This usually means the display no longer matches the cached configuration -- rescan and retry.", target.Label),
         DisplayConfigNative.ERROR_NOT_SUPPORTED =>
-            $"{target.Label} reports HDR support but the driver refused the request.",
+            L.F("{0} reports HDR support but the driver refused the request.", target.Label),
         DisplayConfigNative.ERROR_ACCESS_DENIED =>
-            $"Access denied changing HDR on {target.Label}.",
+            L.F("Access denied changing HDR on {0}.", target.Label),
         DisplayConfigNative.ERROR_GEN_FAILURE =>
-            $"The display driver failed the HDR request for {target.Label}.",
-        _ => $"Changing HDR on {target.Label} failed with Win32 error {error}.",
+            L.F("The display driver failed the HDR request for {0}.", target.Label),
+        _ => L.F("Changing HDR on {0} failed with Win32 error {1}.", target.Label, error),
     };
 
     private int ApplyHdrState(Luid adapterId, uint targetId, bool enable, out bool settled)

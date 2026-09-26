@@ -147,6 +147,59 @@ public class UpdateTests
     }
 
     [Fact]
+    public void ExtractHighlights_TakesTheBoldTitlesOfTopLevelBullets()
+    {
+        // The shape release.yml publishes: the version's CHANGELOG section.
+        const string body = """
+            ### Added
+
+            - **Check for updates, and install in one click.** *Check for updates…* in the tray menu and in
+              Settings. When a release is newer, *Update now* downloads it.
+            - **Only the shared screen loses HDR.** With more than one HDR display on, the prompt asks.
+              - a nested bullet that is not a highlight
+
+            ### Fixed
+
+            - **HDR switched off while the screen picker was still open.** Chromium browsers record a capture.
+            - **A fourth item.** Beyond the limit.
+            """;
+
+        Assert.Equal(
+        [
+            "Check for updates, and install in one click",
+            "Only the shared screen loses HDR",
+            "HDR switched off while the screen picker was still open",
+        ], UpdateChecker.ExtractHighlights(body));
+    }
+
+    [Fact]
+    public void ExtractHighlights_FallsBackToTheFirstSentence()
+    {
+        Assert.Equal(
+            ["Fixed a crash when a display is unplugged"],
+            UpdateChecker.ExtractHighlights("- Fixed a crash when a display is unplugged. It no longer takes the tray down."));
+    }
+
+    [Fact]
+    public void ExtractHighlights_HandlesGitHubsDefaultBody()
+    {
+        // What the v1.1.0 release carried before release.yml used the CHANGELOG.
+        Assert.Empty(UpdateChecker.ExtractHighlights(
+            "**Full Changelog**: https://github.com/preunec-gmbh/hdr-switch/compare/v1.0.1...v1.1.0"));
+        Assert.Empty(UpdateChecker.ExtractHighlights(null));
+    }
+
+    [Fact]
+    public void ParseRelease_CarriesTheHighlights()
+    {
+        var json = ReleaseJson().Replace(
+            "\"draft\": false,",
+            "\"draft\": false, \"body\": \"### Added\\r\\n\\r\\n- **Tray shows who is sharing.** Details.\",");
+
+        Assert.Equal(["Tray shows who is sharing"], UpdateChecker.ParseRelease(json)!.Highlights);
+    }
+
+    [Fact]
     public void AfterUpdateFlag_StartsTheTrayAndCarriesThePid()
     {
         var options = CommandLine.Parse(["--after-update", "4242"]);

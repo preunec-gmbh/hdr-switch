@@ -1,5 +1,6 @@
 using HdrSwitch.Core.Config;
 using HdrSwitch.Core.Hdr;
+using HdrSwitch.Core.Localization;
 using HdrSwitch.Core.Rules;
 using HdrSwitch.Core.Sharing;
 
@@ -21,6 +22,7 @@ internal sealed class SettingsForm : Form
     private readonly CheckBox _hotkeyEnabled = new();
     private readonly TextBox _hotkeyText = new();
     private readonly Label _hotkeyStatus = new();
+    private readonly ComboBox _language = new();
 
     private readonly CheckBox _watchSharing = new();
     private readonly CheckBox _restoreAfter = new();
@@ -45,7 +47,7 @@ internal sealed class SettingsForm : Form
         _ = rules;
         _displays = displays;
 
-        Text = "HDR Switch — Settings";
+        Text = L.T("HDR Switch — Settings");
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.Sizable;
         MinimizeBox = false;
@@ -81,12 +83,12 @@ internal sealed class SettingsForm : Form
             Padding = new Padding(10),
         };
 
-        var close = new Button { Text = "Close", Width = 90, Height = 28, DialogResult = DialogResult.Cancel };
+        var close = new Button { Text = L.T("Close"), Width = 90, Height = 28, DialogResult = DialogResult.Cancel };
         close.Click += (_, _) => Close();
 
         var save = new Button
         {
-            Text = "Save",
+            Text = L.T("Save"),
             Width = 90,
             Height = 28,
             FlatStyle = FlatStyle.Flat,
@@ -250,17 +252,37 @@ internal sealed class SettingsForm : Form
 
     private TabPage BuildGeneralTab()
     {
-        var page = NewPage("General");
+        var page = NewPage(L.T("General"));
         var y = 16;
 
-        _startWithWindows.Text = "Start HDR Switch when I sign in";
+        // Labelled in English too once another language is active, so someone who picked the
+        // wrong one can still find the way back.
+        var languageLabel = new Label
+        {
+            Text = L.Current == UiLanguage.English ? "Language" : L.T("Language") + " (Language)",
+            AutoSize = true,
+            Location = new Point(16, y + 4),
+        };
+        page.Controls.Add(languageLabel);
+
+        _language.DropDownStyle = ComboBoxStyle.DropDownList;
+        _language.SetBounds(180, y, 240, 24);
+        foreach (var language in Enum.GetValues<UiLanguage>())
+        {
+            _language.Items.Add(new LanguageChoice(language));
+        }
+
+        page.Controls.Add(_language);
+        y += 36;
+
+        _startWithWindows.Text = L.T("Start HDR Switch when I sign in");
         Place(page, _startWithWindows, ref y);
 
-        _showNoticeOnToggle.Text = "Show a brief confirmation when HDR changes";
+        _showNoticeOnToggle.Text = L.T("Show a brief confirmation when HDR changes");
         Place(page, _showNoticeOnToggle, ref y);
 
         y += 10;
-        _hotkeyEnabled.Text = "Global hotkey";
+        _hotkeyEnabled.Text = L.T("Global hotkey");
         Place(page, _hotkeyEnabled, ref y);
 
         _hotkeyText.SetBounds(34, y, 180, 24);
@@ -269,7 +291,7 @@ internal sealed class SettingsForm : Form
 
         var hint = new Label
         {
-            Text = "e.g. Ctrl+Alt+H, Win+Shift+F9",
+            Text = L.T("e.g. Ctrl+Alt+H, Win+Shift+F9"),
             AutoSize = true,
             ForeColor = SystemColors.GrayText,
             Location = new Point(224, y + 4),
@@ -284,7 +306,7 @@ internal sealed class SettingsForm : Form
 
         var cliHeader = new Label
         {
-            Text = "Command line (for desktop shortcuts, Stream Deck, AutoHotkey)",
+            Text = L.T("Command line (for desktop shortcuts, Stream Deck, AutoHotkey)"),
             AutoSize = true,
             Font = new Font(Font, FontStyle.Bold),
             Location = new Point(16, y),
@@ -313,7 +335,7 @@ internal sealed class SettingsForm : Form
 
         var updatesHeader = new Label
         {
-            Text = $"Updates — you have version {UpdateFlow.CurrentVersionText}",
+            Text = L.F("Updates — you have version {0}", UpdateFlow.CurrentVersionText),
             AutoSize = true,
             Font = new Font(Font, FontStyle.Bold),
             Location = new Point(16, y),
@@ -321,7 +343,7 @@ internal sealed class SettingsForm : Form
         page.Controls.Add(updatesHeader);
         y += 26;
 
-        var checkNow = new Button { Text = "Check for updates now", AutoSize = true, Height = 28, Location = new Point(16, y) };
+        var checkNow = new Button { Text = L.T("Check for updates now"), AutoSize = true, Height = 28, Location = new Point(16, y) };
         checkNow.Click += (_, _) => CheckForUpdatesRequested?.Invoke(this, EventArgs.Empty);
         page.Controls.Add(checkNow);
 
@@ -330,13 +352,12 @@ internal sealed class SettingsForm : Form
 
     private TabPage BuildSharingTab()
     {
-        var page = NewPage("Screen sharing");
+        var page = NewPage(L.T("Screen sharing"));
         var y = 16;
 
         var blurb = new Label
         {
-            Text = "Windows records which apps capture the screen. When one starts while HDR is on, " +
-                   "HDR Switch can offer to turn HDR off so viewers do not see washed-out colour.",
+            Text = L.T("Windows records which apps capture the screen. When one starts while HDR is on, HDR Switch can offer to turn HDR off so viewers do not see washed-out colour."),
             AutoSize = false,
             Location = new Point(16, y),
             Size = new Size(570, 36),
@@ -345,24 +366,24 @@ internal sealed class SettingsForm : Form
         page.Controls.Add(blurb);
         y += 44;
 
-        _watchSharing.Text = "Watch for screen sharing";
+        _watchSharing.Text = L.T("Watch for screen sharing");
         Place(page, _watchSharing, ref y);
 
-        _restoreAfter.Text = "Offer to restore HDR when sharing ends";
+        _restoreAfter.Text = L.T("Offer to restore HDR when sharing ends");
         Place(page, _restoreAfter, ref y);
 
-        var secondsLabel = new Label { Text = "Dismiss the prompt after", AutoSize = true, Location = new Point(16, y + 4) };
+        var secondsLabel = new Label { Text = L.T("Dismiss the prompt after"), AutoSize = true, Location = new Point(16, y + 4) };
         page.Controls.Add(secondsLabel);
         _toastSeconds.SetBounds(160, y, 60, 24);
         _toastSeconds.Minimum = 5;
         _toastSeconds.Maximum = 120;
         page.Controls.Add(_toastSeconds);
-        page.Controls.Add(new Label { Text = "seconds", AutoSize = true, Location = new Point(226, y + 4) });
+        page.Controls.Add(new Label { Text = L.T("seconds"), AutoSize = true, Location = new Point(226, y + 4) });
         y += 36;
 
         var rulesHeader = new Label
         {
-            Text = "What HDR Switch has learned",
+            Text = L.T("What HDR Switch has learned"),
             AutoSize = true,
             Font = new Font(Font, FontStyle.Bold),
             Location = new Point(16, y),
@@ -374,9 +395,9 @@ internal sealed class SettingsForm : Form
         _rulesList.FullRowSelect = true;
         _rulesList.MultiSelect = false;
         _rulesList.Dock = DockStyle.Fill;
-        _rulesList.Columns.Add("App", 200);
-        _rulesList.Columns.Add("When it shares my screen", 240);
-        _rulesList.Columns.Add("Answers", 110);
+        _rulesList.Columns.Add(L.T("App"), 200);
+        _rulesList.Columns.Add(L.T("When it shares my screen"), 240);
+        _rulesList.Columns.Add(L.T("Answers"), 110);
 
         var actions = new FlowLayoutPanel
         {
@@ -386,11 +407,11 @@ internal sealed class SettingsForm : Form
             Margin = Padding.Empty,
         };
 
-        actions.Controls.Add(MakeRuleButton("Ask me", RuleState.Ask));
-        actions.Controls.Add(MakeRuleButton("Always turn HDR off", RuleState.AutoTurnOff));
-        actions.Controls.Add(MakeRuleButton("Never ask", RuleState.AutoKeep));
+        actions.Controls.Add(MakeRuleButton(L.T("Ask me"), RuleState.Ask));
+        actions.Controls.Add(MakeRuleButton(L.T("Always turn HDR off"), RuleState.AutoTurnOff));
+        actions.Controls.Add(MakeRuleButton(L.T("Never ask"), RuleState.AutoKeep));
 
-        var remove = new Button { Text = "Forget", Width = 80, Height = 26 };
+        var remove = new Button { Text = L.T("Forget"), Width = 80, Height = 26 };
         remove.Click += (_, _) =>
         {
             if (SelectedRuleKey() is { } key)
@@ -411,12 +432,12 @@ internal sealed class SettingsForm : Form
 
     private TabPage BuildGamesTab()
     {
-        var page = NewPage("Games");
+        var page = NewPage(L.T("Games"));
         var y = 16;
 
         var blurb = new Label
         {
-            Text = "Turn HDR on automatically while a game is running, and put it back when the game exits.",
+            Text = L.T("Turn HDR on automatically while a game is running, and put it back when the game exits."),
             AutoSize = false,
             Location = new Point(16, y),
             Size = new Size(570, 20),
@@ -425,16 +446,16 @@ internal sealed class SettingsForm : Form
         page.Controls.Add(blurb);
         y += 28;
 
-        _watchGames.Text = "Watch for games";
+        _watchGames.Text = L.T("Watch for games");
         Place(page, _watchGames, ref y);
 
         _gamesList.View = View.Details;
         _gamesList.FullRowSelect = true;
         _gamesList.CheckBoxes = true;
         _gamesList.Dock = DockStyle.Fill;
-        _gamesList.Columns.Add("Executable", 220);
-        _gamesList.Columns.Add("Name", 200);
-        _gamesList.Columns.Add("Displays", 130);
+        _gamesList.Columns.Add(L.T("Executable"), 220);
+        _gamesList.Columns.Add(L.T("Name"), 200);
+        _gamesList.Columns.Add(L.T("Displays"), 130);
         _gamesList.ItemChecked += (_, e) =>
         {
             if (e.Item.Tag is GameRule rule)
@@ -449,11 +470,11 @@ internal sealed class SettingsForm : Form
             Margin = Padding.Empty,
         };
 
-        var add = new Button { Text = "Add game…", Width = 100, Height = 26 };
+        var add = new Button { Text = L.T("Add game…"), Width = 100, Height = 26 };
         add.Click += (_, _) => AddGameRule();
         actions.Controls.Add(add);
 
-        var remove = new Button { Text = "Remove", Width = 90, Height = 26 };
+        var remove = new Button { Text = L.T("Remove"), Width = 90, Height = 26 };
         remove.Click += (_, _) =>
         {
             if (_gamesList.SelectedItems.Count > 0 && _gamesList.SelectedItems[0].Tag is GameRule rule)
@@ -530,18 +551,15 @@ internal sealed class SettingsForm : Form
 
     private TabPage BuildAdvancedTab()
     {
-        var page = NewPage("Advanced");
+        var page = NewPage(L.T("Advanced"));
         var y = 16;
 
-        _heuristicEnabled.Text = "Also guess from running processes (approximate)";
+        _heuristicEnabled.Text = L.T("Also guess from running processes (approximate)");
         Place(page, _heuristicEnabled, ref y);
 
         var blurb = new Label
         {
-            Text = "Windows only records apps that capture through the modern API — which on Windows 11 is " +
-                   "essentially all of them. Older capture tools do not appear at all. This fallback simply " +
-                   "checks whether an executable is running, so it cannot tell \"open\" from \"sharing\" and " +
-                   "will produce false alarms. One executable per line.",
+            Text = L.T("Windows only records apps that capture through the modern API — which on Windows 11 is essentially all of them. Older capture tools do not appear at all. This fallback simply checks whether an executable is running, so it cannot tell \"open\" from \"sharing\" and will produce false alarms. One executable per line."),
             AutoSize = false,
             Location = new Point(34, y),
             Size = new Size(552, 78),
@@ -559,7 +577,7 @@ internal sealed class SettingsForm : Form
 
         var suggest = new LinkLabel
         {
-            Text = "Insert common capture tools",
+            Text = L.T("Insert common capture tools"),
             AutoSize = true,
             Location = new Point(34, y),
         };
@@ -581,7 +599,7 @@ internal sealed class SettingsForm : Form
 
         var diagHeader = new Label
         {
-            Text = "Diagnostics",
+            Text = L.T("Diagnostics"),
             AutoSize = true,
             Font = new Font(Font, FontStyle.Bold),
             Location = new Point(16, y),
@@ -641,6 +659,7 @@ internal sealed class SettingsForm : Form
         _showNoticeOnToggle.Checked = _working.ShowBalloonOnToggle;
         _hotkeyEnabled.Checked = _working.HotkeyEnabled;
         _hotkeyText.Text = _working.Hotkey;
+        _language.SelectedIndex = Math.Max(0, Array.IndexOf(Enum.GetValues<UiLanguage>(), _working.Language));
 
         _watchSharing.Checked = _working.WatchScreenSharing;
         _restoreAfter.Checked = _working.RestoreHdrAfterSharing;
@@ -665,9 +684,9 @@ internal sealed class SettingsForm : Form
         {
             var behaviour = rule.State switch
             {
-                RuleState.AutoTurnOff => "Turn HDR off automatically",
-                RuleState.AutoKeep => "Leave HDR alone, stay quiet",
-                _ => "Ask me",
+                RuleState.AutoTurnOff => L.T("Turn HDR off automatically"),
+                RuleState.AutoKeep => L.T("Leave HDR alone, stay quiet"),
+                _ => L.T("Ask me"),
             };
 
             var item = new ListViewItem(rule.DisplayName is { Length: > 0 } ? rule.DisplayName : rule.AppKey)
@@ -675,13 +694,13 @@ internal sealed class SettingsForm : Form
                 Tag = rule,
             };
             item.SubItems.Add(behaviour);
-            item.SubItems.Add($"off {rule.TurnOffCount} / keep {rule.KeepCount}");
+            item.SubItems.Add(L.F("off {0} / keep {1}", rule.TurnOffCount, rule.KeepCount));
             _rulesList.Items.Add(item);
         }
 
         if (_rulesList.Items.Count == 0)
         {
-            _rulesList.Items.Add(new ListViewItem("Nothing learned yet")
+            _rulesList.Items.Add(new ListViewItem(L.T("Nothing learned yet"))
             {
                 ForeColor = SystemColors.GrayText,
             });
@@ -699,7 +718,7 @@ internal sealed class SettingsForm : Form
         {
             var item = new ListViewItem(rule.ExeName) { Tag = rule, Checked = rule.Enabled };
             item.SubItems.Add(rule.DisplayName);
-            item.SubItems.Add(rule.DisplayIds.Count == 0 ? "All capable" : $"{rule.DisplayIds.Count} selected");
+            item.SubItems.Add(rule.DisplayIds.Count == 0 ? L.T("All capable") : L.F("{0} selected", rule.DisplayIds.Count));
             _gamesList.Items.Add(item);
         }
 
@@ -709,15 +728,14 @@ internal sealed class SettingsForm : Form
     private void RefreshDiagnostics()
     {
         var controller = new HdrController();
-        var api = controller.ApiPath == HdrApiPath.Unknown ? "resolved on first use" : controller.ApiPath.ToString();
+        var api = controller.ApiPath == HdrApiPath.Unknown ? L.T("resolved on first use") : controller.ApiPath.ToString();
 
         var lines = new List<string>
         {
             $"Windows: {Environment.OSVersion.VersionString}",
-            $"Display API path: {api}",
-            $"Settings file: {SettingsStore.DefaultPath}",
-            $"Displays detected: {_displays.Count} " +
-            $"({_displays.Count(d => d.CanToggle)} HDR-capable)",
+            L.F("Display API path: {0}", api),
+            L.F("Settings file: {0}", SettingsStore.DefaultPath),
+            L.F("Displays detected: {0} ({1} HDR-capable)", _displays.Count, _displays.Count(d => d.CanToggle)),
         };
 
         foreach (var display in _displays)
@@ -732,21 +750,21 @@ internal sealed class SettingsForm : Form
     {
         if (!_hotkeyEnabled.Checked)
         {
-            _hotkeyStatus.Text = "The hotkey is off. HDR Switch still responds to the tray icon and the command line.";
+            _hotkeyStatus.Text = L.T("The hotkey is off. HDR Switch still responds to the tray icon and the command line.");
             return;
         }
 
         _hotkeyStatus.Text = HotkeyParser.TryParse(_hotkeyText.Text, out var parsed, out var error) && parsed is not null
-            ? $"Will register {parsed.Text}."
-            : error ?? "That hotkey cannot be used.";
+            ? L.F("Will register {0}.", parsed.Text)
+            : error ?? L.T("That hotkey cannot be used.");
     }
 
     private void AddGameRule()
     {
         using var dialog = new OpenFileDialog
         {
-            Title = "Pick the game executable",
-            Filter = "Programs (*.exe)|*.exe|All files (*.*)|*.*",
+            Title = L.T("Pick the game executable"),
+            Filter = L.T("Programs (*.exe)|*.exe|All files (*.*)|*.*"),
             CheckFileExists = true,
         };
 
@@ -758,7 +776,7 @@ internal sealed class SettingsForm : Form
         var exeName = ProcessHeuristic.NormalizeExeName(dialog.FileName);
         if (_working.GameRules.Any(g => string.Equals(g.ExeName, exeName, StringComparison.OrdinalIgnoreCase)))
         {
-            MessageBox.Show(this, $"{exeName} is already in the list.", "HDR Switch",
+            MessageBox.Show(this, L.F("{0} is already in the list.", exeName), "HDR Switch",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
@@ -792,13 +810,14 @@ internal sealed class SettingsForm : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, $"Could not change the startup entry: {ex.Message}", "HDR Switch",
+            MessageBox.Show(this, L.F("Could not change the startup entry: {0}", ex.Message), "HDR Switch",
                 MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
         _working.ShowBalloonOnToggle = _showNoticeOnToggle.Checked;
         _working.HotkeyEnabled = _hotkeyEnabled.Checked;
         _working.Hotkey = _hotkeyText.Text.Trim();
+        _working.Language = (_language.SelectedItem as LanguageChoice)?.Language ?? UiLanguage.Automatic;
 
         _working.WatchScreenSharing = _watchSharing.Checked;
         _working.RestoreHdrAfterSharing = _restoreAfter.Checked;
@@ -814,5 +833,11 @@ internal sealed class SettingsForm : Form
 
         SettingsChanged?.Invoke(this, _working.Clone());
         Close();
+    }
+
+    /// <summary>A language as the picker shows it: in its own name, so it is findable from any other.</summary>
+    private sealed record LanguageChoice(UiLanguage Language)
+    {
+        public override string ToString() => L.NativeName(Language);
     }
 }

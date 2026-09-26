@@ -53,8 +53,24 @@ internal static class IconFactory
 
     internal static Icon Unavailable => Get("blocked", static g => Draw(g, enabled: false, blocked: true));
 
-    internal static Icon ForState(bool anyEnabled, bool anyCapable) =>
-        !anyCapable ? Unavailable : anyEnabled ? On : Off;
+    /// <summary>
+    /// The state icon, with a "live" dot while an app is sharing the screen. The dot is what makes
+    /// the confirmation delay legible: the user can see HDR Switch has noticed the share, and
+    /// what it did about it, without opening anything.
+    /// </summary>
+    internal static Icon ForState(bool anyEnabled, bool anyCapable, bool sharing = false)
+    {
+        if (!sharing)
+        {
+            return !anyCapable ? Unavailable : anyEnabled ? On : Off;
+        }
+
+        return !anyCapable
+            ? Get("blocked-sharing", static g => { Draw(g, enabled: false, blocked: true); DrawLiveDot(g); })
+            : anyEnabled
+                ? Get("on-sharing", static g => { Draw(g, enabled: true, blocked: false); DrawLiveDot(g); })
+                : Get("off-sharing", static g => { Draw(g, enabled: false, blocked: false); DrawLiveDot(g); });
+    }
 
     private static Icon Get(string key, Action<Graphics> draw)
     {
@@ -126,6 +142,23 @@ internal static class IconFactory
             using var pen = new Pen(Brand.StateDangerFill, 3f);
             graphics.DrawLine(pen, bounds.Left + 4, bounds.Bottom - 4, bounds.Right - 4, bounds.Top + 4);
         }
+    }
+
+    /// <summary>
+    /// Red for "live", the convention every recording and screen-share indicator uses. A light
+    /// halo separates it from the disc on both taskbar polarities.
+    /// </summary>
+    private static void DrawLiveDot(Graphics graphics)
+    {
+        var dot = new Rectangle(17, 17, 14, 14);
+
+        using (var halo = new SolidBrush(Color.White))
+        {
+            graphics.FillEllipse(halo, Rectangle.Inflate(dot, 2, 2));
+        }
+
+        using var fill = new SolidBrush(Brand.StateDangerFill);
+        graphics.FillEllipse(fill, dot);
     }
 
     internal static void Dispose()

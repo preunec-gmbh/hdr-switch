@@ -1,5 +1,6 @@
 using HdrSwitch.Core.Config;
 using HdrSwitch.Core.Hdr;
+using HdrSwitch.Core.Localization;
 using HdrSwitch.Core.Rules;
 using HdrSwitch.Core.Sharing;
 
@@ -44,6 +45,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         _settings = _store.Load();
         _rules = new RuleEngine(_settings.AppRules);
+        L.Use(_settings.Language);
 
         // Forces handle creation so background threads have something to marshal onto.
         _ = _marshal.Handle;
@@ -87,9 +89,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
             _settings.IntroShown = true;
             Save();
             ToastWindow.ShowNotice(
-                "HDR Switch is running",
-                "Click the tray icon to flip HDR, or press " + _settings.Hotkey + ". " +
-                "If an app starts sharing your screen while HDR is on, you'll get a heads-up.",
+                L.T("HDR Switch is running"),
+                L.F("Click the tray icon to flip HDR, or press {0}. If an app starts sharing your screen while HDR is on, you'll get a heads-up.", _settings.Hotkey),
                 10);
         }
     }
@@ -131,29 +132,44 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         var capable = _displays.Where(d => d.CanToggle).ToList();
         var anyOn = capable.Any(d => d.HdrEnabled);
+        var sharing = ActiveShares;
 
-        _tray.Icon = IconFactory.ForState(anyOn, capable.Count > 0);
-        _tray.Text = BuildTrayTooltip(capable, anyOn);
+        _tray.Icon = IconFactory.ForState(anyOn, capable.Count > 0, sharing.Count > 0);
+        _tray.Text = BuildTrayTooltip(capable, anyOn, sharing);
         _settingsForm?.NotifyDisplaysChanged(_displays);
     }
 
-    private static string BuildTrayTooltip(IReadOnlyList<DisplayTarget> capable, bool anyOn)
+    /// <summary>Apps confirmed to be sharing right now, as the capture watcher sees them.</summary>
+    private IReadOnlyList<CaptureSession> ActiveShares => _captureWatcher?.ActiveSessions ?? [];
+
+    private static string BuildTrayTooltip(
+        IReadOnlyList<DisplayTarget> capable, bool anyOn, IReadOnlyList<CaptureSession> sharing)
     {
+        if (sharing.Count > 0)
+        {
+            // NotifyIcon.Text is capped at 63 characters, and app names can be long.
+            var who = sharing.Count == 1 ? sharing[0].AppName : L.F("{0} apps", sharing.Count);
+            var text = anyOn ? L.F("{0} sharing · HDR on", who) : L.F("{0} sharing · HDR off", who);
+            return text.Length <= 63 ? text : text[..60] + "...";
+        }
+
         if (capable.Count == 0)
         {
-            return "HDR Switch — no HDR-capable display";
+            return L.T("HDR Switch — no HDR-capable display");
         }
 
         if (capable.Count == 1)
         {
-            return $"HDR Switch — {capable[0].Label}: HDR {(capable[0].HdrEnabled ? "on" : "off")}";
+            return capable[0].HdrEnabled
+                ? L.F("HDR Switch — {0}: HDR on", capable[0].Label)
+                : L.F("HDR Switch — {0}: HDR off", capable[0].Label);
         }
 
         var on = capable.Count(d => d.HdrEnabled);
-        var summary = on == 0 ? "all off" : on == capable.Count ? "all on" : $"{on} of {capable.Count} on";
-
         // NotifyIcon.Text is capped at 63 characters; keep it short rather than risk truncation.
-        return $"HDR Switch — HDR {summary}";
+        return on == 0 ? L.T("HDR Switch — HDR all off")
+            : on == capable.Count ? L.T("HDR Switch — HDR all on")
+            : L.F("HDR Switch — HDR {0} of {1} on", on, capable.Count);
     }
 
     private void Save() => _store.Save(_settings);
@@ -176,9 +192,14 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         RefreshDisplays(updateIcon: true);
 
+        if (AddSharingItems(menu))
+        {
+            menu.Items.Add(new ToolStripSeparator());
+        }
+
         if (_displays.Count == 0)
         {
-            menu.Items.Add(new ToolStripMenuItem("No displays detected") { Enabled = false });
+            menu.Items.Add(new ToolStripMenuItem(L.T("No displays detected")) { Enabled = false });
         }
 
         foreach (var display in _displays)
@@ -199,7 +220,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         var capable = _displays.Where(d => d.CanToggle).ToList();
         var toggleAll = new ToolStripMenuItem(
-            capable.Any(d => d.HdrEnabled) ? "Turn all HDR off" : "Turn all HDR on")
+            capable.Any(d => d.HdrEnabled) ? L.T("Turn all HDR off") : L.T("Turn all HDR on"))
         {
             Enabled = capable.Count > 0,
             ShortcutKeyDisplayString = _settings.HotkeyEnabled ? _settings.Hotkey : null,
@@ -209,7 +230,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         menu.Items.Add(new ToolStripSeparator());
 
-        var watchSharing = new ToolStripMenuItem("Warn me when sharing my screen")
+        var watchSharing = new ToolStripMenuItem(L.T("Warn me when sharing my screen"))
         {
             Checked = _settings.WatchScreenSharing,
         };
@@ -233,11 +254,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         menu.Items.Add(new ToolStripSeparator());
 
-        var settings = new ToolStripMenuItem("Settings…");
+        var settings = new ToolStripMenuItem(L.T("Settings…"));
         settings.Click += (_, _) => OpenSettings();
         menu.Items.Add(settings);
 
-        var updates = new ToolStripMenuItem("Check for updates…");
+        var updates = new ToolStripMenuItem(L.T("Check for updates…"));
         updates.Click += (_, _) => _ = _updates.CheckNowAsync();
         menu.Items.Add(updates);
 
@@ -247,9 +268,52 @@ internal sealed class TrayApplicationContext : ApplicationContext
             menu.Items.Add(warn);
         }
 
-        var exit = new ToolStripMenuItem("Exit");
+        var exit = new ToolStripMenuItem(L.T("Exit"));
         exit.Click += (_, _) => ExitApplication();
         menu.Items.Add(exit);
+    }
+
+    /// <summary>
+    /// One line per app that is sharing, with what HDR Switch did about it and the one action
+    /// that undoes or completes it. Returns whether anything was added.
+    /// </summary>
+    private bool AddSharingItems(ContextMenuStrip menu)
+    {
+        var sharing = ActiveShares;
+
+        foreach (var session in sharing)
+        {
+            var approximate = session.Capability == CaptureCapability.ProcessHeuristic;
+            menu.Items.Add(new ToolStripMenuItem(approximate
+                ? L.F("● {0} may be capturing your screen", session.AppName)
+                : L.F("● {0} is sharing your screen", session.AppName))
+            {
+                Enabled = false,
+            });
+
+            if (_sharingRestore.TryGetValue(session.AppKey, out var turnedOff))
+            {
+                var labels = _displays.Where(d => turnedOff.Contains(d.StableId)).Select(d => d.Label).ToList();
+                var restore = new ToolStripMenuItem(labels.Count > 0
+                    ? L.F("Restore HDR now ({0})", string.Join(", ", labels))
+                    : L.T("Restore HDR now"));
+                var key = session.AppKey;
+                restore.Click += (_, _) => RestoreAfterSharing(key, announce: true);
+                menu.Items.Add(restore);
+                continue;
+            }
+
+            var affected = _displays.Where(d => d.CanToggle && d.HdrEnabled).ToList();
+            if (affected.Count > 0)
+            {
+                var turnOff = new ToolStripMenuItem(L.T("Turn HDR off now…"));
+                var captured = session;
+                turnOff.Click += (_, _) => ShowSharingSuggestion(captured, affected, approximate);
+                menu.Items.Add(turnOff);
+            }
+        }
+
+        return sharing.Count > 0;
     }
 
     private ToolStripMenuItem? BuildAutoHdrItem()
@@ -270,7 +334,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             return null;
         }
 
-        var item = new ToolStripMenuItem("Auto HDR for games")
+        var item = new ToolStripMenuItem(L.T("Auto HDR for games"))
         {
             Checked = current.Value,
         };
@@ -282,13 +346,13 @@ internal sealed class TrayApplicationContext : ApplicationContext
                 var desired = !current.Value;
                 AutoHdrSettings.SetEnabled(desired);
                 ToastWindow.ShowNotice(
-                    $"Auto HDR {(desired ? "enabled" : "disabled")}",
-                    "Games that are already running need to be restarted before this takes effect.",
+                    desired ? L.T("Auto HDR enabled") : L.T("Auto HDR disabled"),
+                    L.T("Games that are already running need to be restarted before this takes effect."),
                     ShortNoticeSeconds + 2);
             }
             catch (Exception ex)
             {
-                ToastWindow.ShowNotice("Could not change Auto HDR", ex.Message, ShortNoticeSeconds + 2);
+                ToastWindow.ShowNotice(L.T("Could not change Auto HDR"), ex.Message, ShortNoticeSeconds + 2);
             }
         };
 
@@ -306,10 +370,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             var blocked = _displays.Where(d => d.Capability == HdrCapability.BlockedByPolicy).ToList();
             ToastWindow.ShowNotice(
-                "No HDR-capable display",
+                L.T("No HDR-capable display"),
                 blocked.Count > 0
-                    ? $"HDR is blocked by system policy on {string.Join(", ", blocked.Select(d => d.Label))}."
-                    : "None of the connected displays report HDR support.",
+                    ? L.F("HDR is blocked by system policy on {0}.", string.Join(", ", blocked.Select(d => d.Label)))
+                    : L.T("None of the connected displays report HDR support."),
                 ShortNoticeSeconds + 2);
             return;
         }
@@ -337,8 +401,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         if (failures.Count > 0)
         {
             ToastWindow.ShowNotice(
-                "HDR did not change",
-                string.Join("\n", failures.Select(f => f.Message ?? $"{f.Target.Label} failed.")),
+                L.T("HDR did not change"),
+                string.Join("\n", failures.Select(f => f.Message ?? L.F("{0} failed.", f.Target.Label))),
                 ShortNoticeSeconds + 4);
             return;
         }
@@ -349,7 +413,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
 
         var names = string.Join(", ", results.Select(r => r.Target.Label));
-        ToastWindow.ShowNotice($"HDR {(desired ? "on" : "off")}", names, ShortNoticeSeconds);
+        ToastWindow.ShowNotice(desired ? L.T("HDR on") : L.T("HDR off"), names, ShortNoticeSeconds);
     }
 
     // ---------------------------------------------------------------- watchers
@@ -365,7 +429,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             _captureWatcher.CaptureStarted += (_, session) => Marshal(() => OnCaptureStarted(session));
             _captureWatcher.CaptureStopped += (_, session) => Marshal(() => OnCaptureStopped(session));
             _captureWatcher.Degraded += (_, message) => Marshal(() =>
-                ToastWindow.ShowNotice("Screen-share detection degraded", message, ShortNoticeSeconds + 4));
+                ToastWindow.ShowNotice(L.T("Screen-share detection degraded"), message, ShortNoticeSeconds + 4));
             _captureWatcher.Start();
         }
         else if (!_settings.WatchScreenSharing && _captureWatcher is not null)
@@ -427,17 +491,14 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         var displayNames = string.Join(", ", affected.Select(d => d.Label));
         var detail = approximate
-            ? $"{session.AppName} is running and may be capturing. HDR is on for {displayNames}, " +
-              "which usually looks washed out and desaturated to whoever is watching."
+            ? L.F("{0} is running and may be capturing. HDR is on for {1}, which usually looks washed out and desaturated to whoever is watching.", session.AppName, displayNames)
             : affected.Count > 1
-                ? $"HDR is on for {affected.Count} screens. Which one are you sharing? " +
-                  "The other keeps HDR; captured HDR reaches viewers washed out."
-                : $"HDR is on for {displayNames}. Captured HDR usually reaches viewers washed out " +
-                  "and desaturated, because it gets flattened to SDR on the way.";
+                ? L.F("HDR is on for {0} screens. Which one are you sharing? The other keeps HDR; captured HDR reaches viewers washed out.", affected.Count)
+                : L.F("HDR is on for {0}. Captured HDR usually reaches viewers washed out and desaturated, because it gets flattened to SDR on the way.", displayNames);
 
         ToastWindow.ShowSuggestion(
             session.AppName,
-            approximate ? $"{session.AppName} may be capturing your screen" : $"{session.AppName} is sharing your screen",
+            approximate ? L.F("{0} may be capturing your screen", session.AppName) : L.F("{0} is sharing your screen", session.AppName),
             detail,
             _settings.ToastSeconds,
             affected.Select(d => (d.StableId, d.Label)).ToList(),
@@ -456,10 +517,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
                     if (state == RuleState.AutoTurnOff)
                     {
                         ToastWindow.ShowNotice(
-                            $"Learned: HDR off for {session.AppName}",
-                            "Next time it shares your screen, HDR will switch off automatically" +
-                            (affected.Count > 1 ? " on the screen you picked" : string.Empty) +
-                            ". You can change this in Settings.",
+                            L.F("Learned: HDR off for {0}", session.AppName),
+                            affected.Count > 1
+                                ? L.T("Next time it shares your screen, HDR will switch off automatically on the screen you picked. You can change this in Settings.")
+                                : L.T("Next time it shares your screen, HDR will switch off automatically. You can change this in Settings."),
                             ShortNoticeSeconds + 3);
                     }
                 }
@@ -493,29 +554,34 @@ internal sealed class TrayApplicationContext : ApplicationContext
             return;
         }
 
+        var switchedOff = string.Join(", ", affected.Where(d => turnedOff.Contains(d.StableId)).Select(d => d.Label));
+
         // An automatic action must always be reversible in one click, and the undo has to also
         // unlearn -- otherwise a rule learned by mistake can only be fixed from Settings.
         ToastWindow.ShowNotice(
-            "HDR off — " + session.AppName + " is sharing",
-            $"Switched off on {string.Join(", ", affected.Where(d => turnedOff.Contains(d.StableId)).Select(d => d.Label))}" +
-            (_displays.Any(d => d.CanToggle && d.HdrEnabled) ? ", other screens left alone" : string.Empty) +
-            ", because that is what you chose before.",
+            L.F("HDR off — {0} is sharing", session.AppName),
+            _displays.Any(d => d.CanToggle && d.HdrEnabled)
+                ? L.F("Switched off on {0}, other screens left alone, because that is what you chose before.", switchedOff)
+                : L.F("Switched off on {0}, because that is what you chose before.", switchedOff),
             _settings.ToastSeconds,
-            actionText: "Undo and ask me next time",
+            actionText: L.T("Undo and ask me next time"),
             onAction: () =>
             {
                 _rules.Undo(session.AppKey);
                 Save();
                 RestoreAfterSharing(session.AppKey, announce: false);
                 ToastWindow.ShowNotice(
-                    $"HDR restored for {session.AppName}",
-                    "HDR Switch will ask again next time instead of deciding for you.",
+                    L.F("HDR restored for {0}", session.AppName),
+                    L.T("HDR Switch will ask again next time instead of deciding for you."),
                     ShortNoticeSeconds + 2);
             });
     }
 
     private void OnCaptureStopped(CaptureSession session)
     {
+        // Drop the live dot whatever else happens.
+        RefreshDisplays(updateIcon: true);
+
         if (!_sharingRestore.ContainsKey(session.AppKey))
         {
             return;
@@ -539,10 +605,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
         var key = session.AppKey;
 
         ToastWindow.ShowNotice(
-            $"{appName} stopped sharing",
-            "HDR is still off. Want it back on?",
+            L.F("{0} stopped sharing", appName),
+            L.T("HDR is still off. Want it back on?"),
             _settings.ToastSeconds,
-            actionText: "Turn HDR back on",
+            actionText: L.T("Turn HDR back on"),
             onAction: () => RestoreAfterSharing(key, announce: false));
     }
 
@@ -577,7 +643,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         if (announce && restored.Count > 0)
         {
-            ToastWindow.ShowNotice("HDR restored", string.Join(", ", restored), ShortNoticeSeconds);
+            ToastWindow.ShowNotice(L.T("HDR restored"), string.Join(", ", restored), ShortNoticeSeconds);
         }
     }
 
@@ -608,8 +674,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             _gameRestore[rule.ExeName] = turnedOn;
             ToastWindow.ShowNotice(
-                "HDR on for " + (rule.DisplayName is { Length: > 0 } ? rule.DisplayName : rule.ExeName),
-                "It will go back off when the game exits.",
+                L.F("HDR on for {0}", rule.DisplayName is { Length: > 0 } ? rule.DisplayName : rule.ExeName),
+                L.T("It will go back off when the game exits."),
                 ShortNoticeSeconds);
         }
     }
@@ -666,7 +732,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         if (_hotkeyWarning is not null)
         {
-            ToastWindow.ShowNotice("Hotkey unavailable", _hotkeyWarning, ShortNoticeSeconds + 4);
+            ToastWindow.ShowNotice(L.T("Hotkey unavailable"), _hotkeyWarning, ShortNoticeSeconds + 4);
         }
     }
 
@@ -690,6 +756,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         _settings = updated;
         _rules = new RuleEngine(_settings.AppRules);
+        L.Use(_settings.Language);
         Save();
 
         ApplyHotkey();

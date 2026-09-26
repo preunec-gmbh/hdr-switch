@@ -229,6 +229,12 @@ internal static class ConsoleRunner
 
     private static int RunBrandCheck(CliOptions options)
     {
+        // Only brandcheck switches language; every other command's output stays English for scripts.
+        if (options.Language is { } language)
+        {
+            Core.Localization.L.Use(language);
+        }
+
         Write($"Fonts resolved    : {Ui.Brand.FontReport}");
         Write($"Theme polarity    : {(Ui.Brand.IsDark ? "dark" : "light")}");
         Write($"Wordmark min width: {Ui.Wordmark.MinimumWidthPx} px (below this it is not drawn)");

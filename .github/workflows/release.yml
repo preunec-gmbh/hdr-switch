@@ -38,11 +38,28 @@ jobs:
           "$hash  HdrSwitch.exe" | Out-File -Encoding ascii publish/HdrSwitch.exe.sha256
           Write-Host "SHA-256: $hash"
 
+      # The release body is this version's CHANGELOG section. The app's update prompt shows its
+      # bold bullet titles as "what's new", so the section must exist before tagging.
+      - name: Release notes from CHANGELOG
+        shell: pwsh
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          $version = $env:TAG.TrimStart('v')
+          $lines = Get-Content CHANGELOG.md -Encoding utf8
+          $start = [Array]::FindIndex($lines, [Predicate[string]]{ param($l) $l -match "^## \[$([regex]::Escape($version))\]" })
+          if ($start -lt 0) { throw "CHANGELOG.md has no '## [$version]' section." }
+          $end = [Array]::FindIndex($lines, $start + 1, [Predicate[string]]{ param($l) $l -match '^## \[' })
+          if ($end -lt 0) { $end = $lines.Length }
+          $body = $lines[($start + 1)..($end - 1)] -join "`n"
+          $body.Trim() | Out-File -Encoding utf8 publish/RELEASE_NOTES.md
+          Get-Content publish/RELEASE_NOTES.md
+
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           draft: false
-          generate_release_notes: true
+          body_path: publish/RELEASE_NOTES.md
           files: |
             publish/HdrSwitch.exe
             publish/HdrSwitch.exe.sha256
