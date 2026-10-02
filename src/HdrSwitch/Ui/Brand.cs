@@ -78,7 +78,7 @@ internal static class Brand
 
     internal static Color TextSecondary => Pick("#4B5180", "#A9B0D6");
 
-    internal static Color TextMuted => Pick("#6E76A8", "#6E76A8");
+    internal static Color TextMuted => Pick("#646CA2", "#848BB5");
 
     internal static Color TextDisabled => Pick("#9CA3C4", "#4B5180");
 

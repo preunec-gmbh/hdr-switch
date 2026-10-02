@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Muted text (the tray icon's inactive half included) is easier to read: it now reaches 4.5:1
+  contrast in both themes, following the preunec design system's 0.3.0 colours.
+
 ## [1.2.0] — 2026-09-26
 
 ### Added
